@@ -17,7 +17,7 @@ export {
  *     }, XFree);
  * ```
  */
-template<typename T, typename SizeType=size_t, typename D=int(*)(void*)> struct CArray {
+template<typename T, typename SizeType=size_t, typename D=void(*)(void*)> struct CArray {
     using ValueType = T;
     using DeleterType = D;
 

@@ -15,8 +15,9 @@ project(cgm)
 
 find_package(X11 REQUIRED)
 find_package(Vulkan REQUIRED)
+find_package(glfw3 REQUIRED)
 add_executable(ncad)
 
 add_subdirectory(src)
 
-target_link_libraries(ncad PUBLIC cm Vulkan::Vulkan)
+target_link_libraries(ncad PUBLIC cm Vulkan::Vulkan glfw)

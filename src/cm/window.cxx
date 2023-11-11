@@ -11,11 +11,19 @@ module;
 #include <optional>
 #include <cstdio>
 #include <functional>
+
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xos.h>
 #include <X11/Xutil.h>
 #include <X11/Xlibint.h>
+#include <xcb/xcb.h>
+
+#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_xlib.h>
+#include <vulkan/vulkan_xcb.h>
+
+
 
 import types;
 import carray;
@@ -33,14 +41,12 @@ template<typename T> struct WindowVec2 {
         return os << "[" << v.x << ", " << v.y << "]";
     }
 };
-using CString = const char*;
 
 export namespace cm {
     struct Window {
         ~Window() {
-            std::cout << "Window destructor" << std::endl;
             if (display) {
-                std::cout << "Window freeing" << std::endl;
+                std::cout << "Destroying " << *this << std::endl;
                 XUnmapWindow(display, xwindow);
                 XDestroyWindow(display, xwindow);
                 XCloseDisplay(display);
@@ -118,7 +124,7 @@ export namespace cm {
             this->win.screen_id = XDefaultScreen(this->win.display);
 
 
-            CArray<i32, i32> depths([&]() -> std::tuple<i32*, i32> {
+            CArray<i32, i32, int(*)(void*)> depths([&]() -> std::tuple<i32*, i32> {
                     auto depths_size = 0;
                     auto depths_array = XListDepths(this->win.display, this->win.screen_id, &depths_size);
                     return std::make_tuple(depths_array, depths_size);
@@ -126,7 +132,7 @@ export namespace cm {
 
             i32 depth = *std::ranges::max_element(depths);
 
-            CArray<XVisualInfo, i32> visuals(
+            CArray<XVisualInfo, i32, int(*)(void*)> visuals(
                     [&]() -> std::tuple<XVisualInfo*, i32> { 
                     auto count = 0;
                     XVisualInfo wtemplate = 

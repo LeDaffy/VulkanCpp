@@ -15,3 +15,5 @@ export using i64 = std::int64_t;
 
 export using f32 = float;
 export using f64 = double;
+
+export using CString = const char*;

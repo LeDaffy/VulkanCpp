@@ -9,5 +9,6 @@ target_sources(cm
     move_only_ptr.cxx
     vke.cxx
     )
+target_include_directories(cm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 target_link_libraries(cm PUBLIC ${X11_LIBRARIES})
