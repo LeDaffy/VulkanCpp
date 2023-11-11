@@ -3,15 +3,18 @@ cmake_minimum_required(VERSION 3.28)
 # clang 17 and greater can avoid this setting
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD 23)
-
+set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -stdlib=libc++ -lc++abi")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+ 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project(cgm)
 
 
-find_package(X11)
+find_package(X11 REQUIRED)
+find_package(Vulkan REQUIRED)
 add_executable(ncad)
 
 add_subdirectory(src)
 
-target_link_libraries(ncad PUBLIC cm)
+target_link_libraries(ncad PUBLIC cm Vulkan::Vulkan)

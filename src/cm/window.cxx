@@ -1,151 +1,152 @@
 module;
-import types;
+#include <string_view>
+#include <iostream>
+#include <string>
+#include <format>
+#include <string_view>
+#include <ranges>
 #include <cstddef>
-#include <expected>
+#include <vector>
+#include <algorithm>
 #include <optional>
 #include <cstdio>
-#include <iostream>
 #include <functional>
-#include <format>
-#include <tuple>
-#include <memory>
+#include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xos.h>
 #include <X11/Xutil.h>
 #include <X11/Xlibint.h>
 
+import types;
+import carray;
+import move_only_ptr;
+
 export module window;
 
 
+template<typename T> struct WindowVec2 {
+    T x;
+    T y;
+    WindowVec2() : x(0), y(0) {}
+    WindowVec2(u32 x, u32 y) : x(x), y(y) {}
+};
+using CString = const char*;
+
 export namespace cm {
-    template<typename T> struct WindowVec2 {
-        T x;
-        T y;
-        WindowVec2(u32 x, u32 y) : x(x), y(y) {}
-    };
-    struct WindowAttributes {
+    struct Window {
+        MoveOnlyPointer<Display> display;
+        MoveOnlyPointer<Screen>  screen;
+        ::Window xwindow;
+
+        ~Window() {
+            if (display) {
+                XCloseDisplay(display);
+            }
+        }
+
+        // Move Constructor
+        Window(Window&& o) = default;
+        // Move assignment
+        Window& operator=(Window&& o) = default;
+        // Copy constructor
+        Window(Window& o) = delete;
+        // Copy assignment
+        Window& operator=(Window& o) = delete;
+
+        friend class WindowBuilder;
+        private:
+        // Default constructor
+        Window()                                 : display(nullptr), screen(nullptr), dimensions(640, 480), position(0, 0), border_width(0), name("X11 Window") {}
+        Window(Display* display, Screen* screen) : display(display), screen(screen),  dimensions(640, 480), position(0, 0), border_width(0), name("X11 Window") {}
         WindowVec2<u32> dimensions;
         WindowVec2<u32> position;
         u32 border_width;
+        CString name;
 
-        WindowAttributes() : dimensions(640, 480), position(0, 0), border_width(0){}
-    };
-    struct Window {
-        Display* display;
-        Screen*  screen;
-        ::Window xwindow;
-
-        Window(Display* display, Screen* screen) : display(display), screen(screen) {}
-        ~Window() {
-            XCloseDisplay(display);
-        }
     };
     struct WindowBuilder {
-        WindowAttributes attributes;
+        Window win;
         WindowBuilder() { 
-            this->attributes.dimensions.x = 640;
-            this->attributes.dimensions.y = 480;
+            this->win.dimensions.x = 640;
+            this->win.dimensions.y = 480;
+            this->win.position.x = 0;
+            this->win.dimensions.y = 0;
+            this->win.border_width = 0;
         };
-        auto dimensions(u32 x, u32 y) -> WindowBuilder {
-            this->attributes.dimensions = WindowVec2<u32>(640, 480);
-            return *this;
+        auto with_dimensions(u32 x, u32 y) -> WindowBuilder {
+            this->win.dimensions = WindowVec2<u32>(640, 480);
+            return std::move(*this);
+        }
+        auto with_name(CString name) -> WindowBuilder {
+            this->win.name = name;
+            return std::move(*this);
         }
         auto border_width(u32 border_width) -> WindowBuilder {
-            this->attributes.border_width = border_width;
-            return *this;
+            this->win.border_width = border_width;
+            return std::move(*this);
         }
         auto build() -> Window {
             auto display = XOpenDisplay(nullptr);
             auto screen = XDefaultScreenOfDisplay(display);
             auto screen_id = XDefaultScreen(display);
+            auto wclass = InputOutput;
 
-            auto x = &XFree;
 
-            XArray<i32, i32> depths([display, screen_id]() -> std::tuple<i32*, i32> {
+            CArray<i32, i32> depths([display, screen_id]() -> std::tuple<i32*, i32> {
                     auto depths_size = 0;
                     auto depths_array = XListDepths(display, screen_id, &depths_size);
                     return std::make_tuple(depths_array, depths_size);
-                    }, std::function<int(void*)>(XFree));
-            //for (int i = 0; i < depths.size(); i++) {
-            //    std::printf("%d\n", depths[i]);
-            //}
-            //std::array<int,3>::iterator asdf;
+                    }, XFree);
 
-            return Window(display, screen);
+            i32 depth = *std::ranges::max_element(depths);
+
+            CArray<XVisualInfo, i32> visuals(
+                    [display, depth]() -> std::tuple<XVisualInfo*, i32> { 
+                    auto count = 0;
+                    XVisualInfo wtemplate = 
+                    {
+                    nullptr, //Visual *visual;
+                    0, //VisualID visualid;
+                    0, //int screen;
+                    depth, //unsigned int depth;
+                    0, //int class;
+                    0, //unsigned long red_mask;
+                    0, //unsigned long green_mask;
+                    0, //unsigned long blue_mask;
+                    0, //int colormap_size;
+                    0 //int bits_per_rgb;
+                    };
+                    auto visual_array = XGetVisualInfo(display, VisualNoMask | VisualDepthMask, &wtemplate, &count);
+                    return std::make_tuple(visual_array, count);
+                    }, XFree);
+
+            auto print_xvisual = [](XVisualInfo v) {
+                std::printf("{ ");
+                std::cout << "visual: " << v.visual << ",  ";
+                std::cout << "visualid: " << v.visualid << ",  ";
+                std::cout << "screen: " << v.screen << ",  ";
+                std::cout << "depth: " << v.depth << ",  ";
+                std::cout << "c_class: " << v.c_class << ",  ";
+                std::cout << "red_mask: " << v.red_mask << ",  ";
+                std::cout << "green_mask: " << v.green_mask << ",  ";
+                std::cout << "blue_mask: " << v.blue_mask << ",  ";
+                std::cout << "colormap_size: " << v.colormap_size << ",  ";
+                std::cout << "bits_per_rgb: " << v.bits_per_rgb << ",  ";
+                std::printf("}\n");
+            };
+            for (auto& x : visuals) {
+                //print_xvisual(x);
+            }
+            auto window = XCreateWindow(display, XDefaultRootWindow(display), this->win.position.x, this->win.position.y, this->win.dimensions.x, this->win.dimensions.y, 0, CopyFromParent, CopyFromParent, CopyFromParent, 0, nullptr);
+            XStoreName(display, window, this->win.name);
+            XMapWindow(display, window);
+            GC gc = XCreateGC(display, window, 0, 0);
+            XFlush(display);
+
+
+
+            return std::move(Window(display, screen));
         }
         private:
-        template<typename T, typename SizeType=size_t, typename D=std::function<int(void*)>> struct XArray {
-            using ValueType = T;
-            using DeleterType = D;
-
-            using Pointer = ValueType*;
-            using ConstPointer = const ValueType*;
-
-            using Reference = ValueType&;
-            using ConstReference = const ValueType&;
-
-            using Iterator = ValueType*;
-            using ConstIterator = const ValueType*;
-
-            using DifferenceType = std::ptrdiff_t;
-            using ReverseIterator = std::reverse_iterator<Iterator>;
-            using ConstReverseIterator = std::reverse_iterator<ConstIterator>;
-
-
-            // Iterators
-            const Iterator begin() const { return Iterator(this->d); }
-            Iterator begin() { return Iterator(this->d); }
-            const Iterator end() const { return Iterator(this->d + this->size); }
-            Iterator end() { return Iterator(this->d + this->size); }
-            const Iterator cbegin() const { return ConstIterator(this->d); }
-            const Iterator cend() const { return ConstIterator(this->d + this->size); }
-            const ReverseIterator rbegin() const { return ReverseIterator(this->end()); }
-            ReverseIterator rbegin() { return ReverseIterator(this->end()); }
-            const ReverseIterator rend() const { return ReverseIterator(this->begin()); }
-            ReverseIterator rend() { return ReverseIterator(this->begin()); }
-            ConstReverseIterator crbegin() const { return ReverseIterator(this->end()); }
-            ConstReverseIterator crend() const { return ReverseIterator(this->begin()); }
-
-
-            XArray(const std::function<std::tuple<T*, SizeType> ()>& f, DeleterType d) : fn_d(d) {
-                auto [data, size] = f();
-                this->d = data;
-                this->nm = size;
-            }
-            XArray(const std::function<std::tuple<T*, SizeType> ()>& f) : fn_d(std::nullopt) {
-                auto [data, size] = f();
-                this->d = data;
-                this->nm = size;
-            }
-            ~XArray() {
-                this->fn_d(this->d);
-            }
-
-            // size
-            SizeType size() { return this->nm; }
-            const SizeType size() const { return this->nm; }
-
-            // element access
-            Reference operator[](SizeType n) { return this->d[n]; }
-            ConstReference operator[](SizeType n) const { return this->d[n]; }
-            std::optional<Reference> at(SizeType n) {
-                if (n < this->nm)
-                    return this->d[n]; 
-                return std::nullopt;
-            }
-            Reference front() { return this->d[0]; }
-            ConstReference front() const { return this->d[0]; }
-            Reference back() { return this->d[this->nm - 1]; }
-            ConstReference back() const { return this->nm[this->nm - 1]; }
-
-
-
-            Pointer data() { return this->d; }
-            ConstPointer data() const { return this->d; }
-            private:
-            T* d; // data
-            SizeType nm; // number of members
-            DeleterType fn_d;
-        };
     };
 }

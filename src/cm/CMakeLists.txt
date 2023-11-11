@@ -5,6 +5,8 @@ target_sources(cm
     FILE_SET CXX_MODULES FILES
     window.cxx
     types.cxx
+    carray.cxx
+    move_only_ptr.cxx
     )
 
 target_link_libraries(cm PUBLIC ${X11_LIBRARIES})
