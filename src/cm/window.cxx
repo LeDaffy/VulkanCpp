@@ -29,21 +29,23 @@ template<typename T> struct WindowVec2 {
     T y;
     WindowVec2() : x(0), y(0) {}
     WindowVec2(u32 x, u32 y) : x(x), y(y) {}
+    friend std::ostream &operator<<(std::ostream &os, WindowVec2<T>& v) {
+        return os << "[" << v.x << ", " << v.y << "]";
+    }
 };
 using CString = const char*;
 
 export namespace cm {
     struct Window {
-        MoveOnlyPointer<Display> display;
-        MoveOnlyPointer<Screen>  screen;
-        ::Window xwindow;
-
         ~Window() {
+            std::cout << "Window destructor" << std::endl;
             if (display) {
+                std::cout << "Window freeing" << std::endl;
+                XUnmapWindow(display, xwindow);
+                XDestroyWindow(display, xwindow);
                 XCloseDisplay(display);
             }
         }
-
         // Move Constructor
         Window(Window&& o) = default;
         // Move assignment
@@ -53,55 +55,79 @@ export namespace cm {
         // Copy assignment
         Window& operator=(Window& o) = delete;
 
-        friend class WindowBuilder;
+        friend struct WindowBuilder;
+        friend std::ostream &operator<<(std::ostream &os, Window& w);
+
+        // members 
+        MoveOnlyPointer<Display> display;
+        MoveOnlyPointer<Screen>  screen;
+        i32 screen_id;
+        ::Window xwindow;
         private:
         // Default constructor
-        Window()                                 : display(nullptr), screen(nullptr), dimensions(640, 480), position(0, 0), border_width(0), name("X11 Window") {}
-        Window(Display* display, Screen* screen) : display(display), screen(screen),  dimensions(640, 480), position(0, 0), border_width(0), name("X11 Window") {}
+        Window() : display(nullptr), screen(nullptr), screen_id(0), xwindow(0), dimensions(640, 480), position(0, 0), border_width(0), name("X11 Window"), graphics_context(nullptr)  {}
         WindowVec2<u32> dimensions;
         WindowVec2<u32> position;
         u32 border_width;
         CString name;
-
+        GC graphics_context;
     };
+    std::ostream &operator<<(std::ostream &os, Window& w) {
+        return os << "Window (" << &w << "): { "
+            << "display: " << w.display << ",  "
+            << "screen: " << w.screen << ",  "
+            << "xwindow: " << w.xwindow << ",  "
+            << "dimensions: " << w.dimensions << ",  "
+            << "position: " << w.position << ",  "
+            << "border_width: " << w.border_width << ",  "
+            << "name: " << w.name << ",  "
+            << "graphics_context: " << w.graphics_context << " }";
+    }
     struct WindowBuilder {
         Window win;
         WindowBuilder() { 
             this->win.dimensions.x = 640;
             this->win.dimensions.y = 480;
             this->win.position.x = 0;
-            this->win.dimensions.y = 0;
+            this->win.position.y = 0;
             this->win.border_width = 0;
         };
-        auto with_dimensions(u32 x, u32 y) -> WindowBuilder {
-            this->win.dimensions = WindowVec2<u32>(640, 480);
-            return std::move(*this);
+        static auto create() -> WindowBuilder {
+            WindowBuilder builder;
+            return builder;
         }
-        auto with_name(CString name) -> WindowBuilder {
+        auto with_dimensions(u32 x, u32 y) -> WindowBuilder& {
+            this->win.dimensions = WindowVec2<u32>(x, y);
+            return *this;
+        }
+        auto with_position(u32 x, u32 y) -> WindowBuilder& {
+            this->win.position = WindowVec2<u32>(x, y);
+            return *this;
+        }
+        auto with_name(CString name) -> WindowBuilder& {
             this->win.name = name;
-            return std::move(*this);
+            return *this;
         }
-        auto border_width(u32 border_width) -> WindowBuilder {
+        auto border_width(u32 border_width) -> WindowBuilder& {
             this->win.border_width = border_width;
-            return std::move(*this);
+            return *this;
         }
         auto build() -> Window {
-            auto display = XOpenDisplay(nullptr);
-            auto screen = XDefaultScreenOfDisplay(display);
-            auto screen_id = XDefaultScreen(display);
-            auto wclass = InputOutput;
+            this->win.display = XOpenDisplay(nullptr);
+            this->win.screen = XDefaultScreenOfDisplay(this->win.display);
+            this->win.screen_id = XDefaultScreen(this->win.display);
 
 
-            CArray<i32, i32> depths([display, screen_id]() -> std::tuple<i32*, i32> {
+            CArray<i32, i32> depths([&]() -> std::tuple<i32*, i32> {
                     auto depths_size = 0;
-                    auto depths_array = XListDepths(display, screen_id, &depths_size);
+                    auto depths_array = XListDepths(this->win.display, this->win.screen_id, &depths_size);
                     return std::make_tuple(depths_array, depths_size);
                     }, XFree);
 
             i32 depth = *std::ranges::max_element(depths);
 
             CArray<XVisualInfo, i32> visuals(
-                    [display, depth]() -> std::tuple<XVisualInfo*, i32> { 
+                    [&]() -> std::tuple<XVisualInfo*, i32> { 
                     auto count = 0;
                     XVisualInfo wtemplate = 
                     {
@@ -116,11 +142,11 @@ export namespace cm {
                     0, //int colormap_size;
                     0 //int bits_per_rgb;
                     };
-                    auto visual_array = XGetVisualInfo(display, VisualNoMask | VisualDepthMask, &wtemplate, &count);
+                    auto visual_array = XGetVisualInfo(this->win.display, VisualNoMask | VisualDepthMask, &wtemplate, &count);
                     return std::make_tuple(visual_array, count);
                     }, XFree);
 
-            auto print_xvisual = [](XVisualInfo v) {
+            [[maybe_unused]] auto print_xvisual = [](XVisualInfo v) {
                 std::printf("{ ");
                 std::cout << "visual: " << v.visual << ",  ";
                 std::cout << "visualid: " << v.visualid << ",  ";
@@ -134,18 +160,18 @@ export namespace cm {
                 std::cout << "bits_per_rgb: " << v.bits_per_rgb << ",  ";
                 std::printf("}\n");
             };
-            for (auto& x : visuals) {
-                //print_xvisual(x);
-            }
-            auto window = XCreateWindow(display, XDefaultRootWindow(display), this->win.position.x, this->win.position.y, this->win.dimensions.x, this->win.dimensions.y, 0, CopyFromParent, CopyFromParent, CopyFromParent, 0, nullptr);
-            XStoreName(display, window, this->win.name);
-            XMapWindow(display, window);
-            GC gc = XCreateGC(display, window, 0, 0);
-            XFlush(display);
+            this->win.xwindow = XCreateWindow(this->win.display, XDefaultRootWindow(this->win.display), this->win.position.x, this->win.position.y, this->win.dimensions.x, this->win.dimensions.y, 0, CopyFromParent, CopyFromParent, CopyFromParent, 0, nullptr);
+            XStoreName(this->win.display, this->win.xwindow, this->win.name);
+            XMapWindow(this->win.display, this->win.xwindow);
+            XGCValues gc_defaults = {};
+            gc_defaults.foreground = XWhitePixel(this->win.display, this->win.screen_id);
+            gc_defaults.background = XBlackPixel(this->win.display, this->win.screen_id);
+            this->win.graphics_context = XCreateGC(this->win.display, this->win.xwindow, GCForeground | GCBackground, &gc_defaults);
+            XFlush(this->win.display);
 
 
 
-            return std::move(Window(display, screen));
+            return std::move(this->win);
         }
         private:
     };

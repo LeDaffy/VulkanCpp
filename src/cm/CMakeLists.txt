@@ -7,6 +7,7 @@ target_sources(cm
     types.cxx
     carray.cxx
     move_only_ptr.cxx
+    vke.cxx
     )
 
 target_link_libraries(cm PUBLIC ${X11_LIBRARIES})

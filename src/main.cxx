@@ -7,13 +7,18 @@
 
 import window;
 import types;
+import vke;
 
 auto main() -> i32
 {
-    auto window = cm::WindowBuilder()
+    auto window = 
+        cm::WindowBuilder()
                       .with_name("NCAD 3D")
-                      .with_dimensions(640, 480)
+                      .with_dimensions(1280, 720)
+                      .with_position(1280/2, 720/2)
                       .build();
+    std::cout << window << std::endl;;
+    vke::init();
 
 
     std::cout << "Hello world\n" << std::endl;

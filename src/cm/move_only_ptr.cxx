@@ -38,18 +38,16 @@ template<typename T> struct MoveOnlyPointer {
     operator Pointer() const { return this->data; }
     Reference operator *() const { return *(this->data); }
     Pointer operator ->() const { return this->data; }
-    friend std::ostream &operator<<(std::ostream &os, RConstReference m);
-    friend std::ostream &operator<<(std::ostream &os, ConstReference m);
-    friend std::ostream;
+
+    friend std::ostream &operator<<(std::ostream &os, MoveOnlyPointer<T>& m) { return os << m.data; }
 
     // Copy constructor
     MoveOnlyPointer(MoveOnlyPointer& o) : data(o.data) {};
     // Copy assignment
     MoveOnlyPointer& operator=(MoveOnlyPointer& o) { this->data = o.data; return *this; };
 
+    // Copy assignment
+    void operator=(Pointer p) { this->data = p; };
+
 };
-template<typename T>
-std::ostream &operator<<(std::ostream &os, MoveOnlyPointer<T>& m) { return os << m.data; }
-template<typename T>
-std::ostream &operator<<(std::ostream &os, MoveOnlyPointer<T>&& m) { return os << m.data; }
 }
