@@ -29,9 +29,9 @@ template<typename T> class NonOwningPtr {
     ~NonOwningPtr() = default;
 
     // Copy constructor
-    NonOwningPtr(NonOwningPtr& o) : m_data(o.data) {};
+    NonOwningPtr(NonOwningPtr& o) : m_data(o.m_data) {};
     // Copy assignment
-    NonOwningPtr& operator=(NonOwningPtr& o) { m_data = o.data; return *this; };
+    NonOwningPtr& operator=(NonOwningPtr& o) { m_data = o.m_data; return *this; };
     NonOwningPtr& operator=(Pointer o) { m_data = o; return *this; };
 
     // Move constructor
@@ -50,7 +50,7 @@ template<typename T> class NonOwningPtr {
     Reference operator *() const { return *(m_data); }
     Pointer operator ->() const { return m_data; }
 
-    friend std::ostream &operator<<(std::ostream &os, NonOwningPtr<T>& m) { return os << m.data; }
+    friend std::ostream &operator<<(std::ostream &os, NonOwningPtr<T>& m) { return os << m.m_data; }
 
     Pointer get() { return m_data; }
 

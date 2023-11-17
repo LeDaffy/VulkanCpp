@@ -21,3 +21,7 @@ add_executable(ncad)
 add_subdirectory(src)
 
 target_link_libraries(ncad PUBLIC cm Vulkan::Vulkan glfw)
+install(FILES
+    ${CMAKE_SOURCE_DIR}/build/compile_commands.json
+    DESTINATION ${CMAKE_SOURCE_DIR}
+    )
