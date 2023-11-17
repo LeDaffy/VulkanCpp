@@ -1,10 +1,14 @@
 module;
 #include <iostream>
 
-export module move_only_ptr;
+
+export module non_owning_ptr;
 
 export {
-template<typename T, typename D> class MoveOnlyPtr {
+/**
+ * @brief Pointer that does not own any memory nor requires any cleanup
+ */
+template<typename T> class NonOwningPtr {
     public:
     using ValueType = T;
 
@@ -18,17 +22,24 @@ template<typename T, typename D> class MoveOnlyPtr {
 
 
     // Constructor
-    MoveOnlyPtr() : m_data(nullptr) {}
-    MoveOnlyPtr(T* data) : m_data(data) {}
+    NonOwningPtr() : m_data(nullptr) {}
+    NonOwningPtr(T* data) : m_data(data) {}
+
     // Destructor
-    ~MoveOnlyPtr() = default;
+    ~NonOwningPtr() = default;
+
+    // Copy constructor
+    NonOwningPtr(NonOwningPtr& o) : m_data(o.data) {};
+    // Copy assignment
+    NonOwningPtr& operator=(NonOwningPtr& o) { m_data = o.data; return *this; };
+    NonOwningPtr& operator=(Pointer o) { m_data = o; return *this; };
 
     // Move constructor
-    MoveOnlyPtr(MoveOnlyPtr&& o) : m_data(std::move(o.m_data)) {
+    NonOwningPtr(NonOwningPtr&& o) : m_data(std::move(o.m_data)) {
         o.m_data = nullptr;
     }
     // Move assignment
-    MoveOnlyPtr& operator=(MoveOnlyPtr&& o) {
+    NonOwningPtr& operator=(NonOwningPtr&& o) {
         o.m_data = nullptr;
         return *this;
     }
@@ -39,15 +50,10 @@ template<typename T, typename D> class MoveOnlyPtr {
     Reference operator *() const { return *(m_data); }
     Pointer operator ->() const { return m_data; }
 
-    friend std::ostream &operator<<(std::ostream &os, MoveOnlyPtr<T, D>& m) { return os << m.data; }
+    friend std::ostream &operator<<(std::ostream &os, NonOwningPtr<T>& m) { return os << m.data; }
 
-    // Copy constructor
-    MoveOnlyPtr(MoveOnlyPtr& o) = delete;
-    // Copy assignment
-    MoveOnlyPtr& operator=(MoveOnlyPtr& o) = delete;
+    Pointer get() { return m_data; }
 
-    // Copy assignment
-    void operator=(Pointer p) { m_data = p; };
 
     private:
     Pointer m_data;

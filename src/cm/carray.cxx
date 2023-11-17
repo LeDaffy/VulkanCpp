@@ -6,6 +6,11 @@ module;
 export module carray;
 
 export {
+
+class CFreeDeleter {
+    public:
+    void operator()(void* ptr){ std::free(ptr); }
+};
 /*!
  * @brief CArray: Templated class used to wrap a C-style array from a pointer and a length
  * Example:
@@ -17,9 +22,11 @@ export {
  *     }, XFree);
  * ```
  */
-template<typename T, typename SizeType=size_t, typename D=void(*)(void*)> struct CArray {
+template<typename T, typename SizeType=size_t, typename D=CFreeDeleter> class CArray {
+    public:
     using ValueType = T;
     using DeleterType = D;
+    using AllocatorType = std::allocator<T>;
 
     using Pointer = ValueType*;
     using ConstPointer = const ValueType*;
@@ -36,52 +43,22 @@ template<typename T, typename SizeType=size_t, typename D=void(*)(void*)> struct
 
 
     // Iterators
-    const Iterator begin()  const { return Iterator(this->d); }
-          Iterator begin()        { return Iterator(this->d); }
-    const Iterator end()    const { return Iterator(this->d + this->nm); }
-          Iterator end()          { return Iterator(this->d + this->nm); }
+    const Iterator begin()  const { return Iterator(m_data); }
+          Iterator begin()        { return Iterator(m_data); }
+    const Iterator end()    const { return Iterator(m_data + m_count); }
+          Iterator end()          { return Iterator(m_data + m_count); }
 
-    const Iterator cbegin() const { return ConstIterator(this->d); }
-    const Iterator cend()   const { return ConstIterator(this->d + this->nm); }
+    const Iterator cbegin() const { return ConstIterator(m_data); }
+    const Iterator cend()   const { return ConstIterator(m_data + m_count); }
 
-    const ReverseIterator rbegin() const { return ReverseIterator(this->end()); }
-          ReverseIterator rbegin()       { return ReverseIterator(this->end()); }
-    const ReverseIterator rend()   const { return ReverseIterator(this->begin()); }
-          ReverseIterator rend()         { return ReverseIterator(this->begin()); }
+    const ReverseIterator rbegin() const { return ReverseIterator(end()); }
+          ReverseIterator rbegin()       { return ReverseIterator(end()); }
+    const ReverseIterator rend()   const { return ReverseIterator(begin()); }
+          ReverseIterator rend()         { return ReverseIterator(begin()); }
 
-    ConstReverseIterator crbegin() const { return ReverseIterator(this->end()); }
-    ConstReverseIterator crend()   const { return ReverseIterator(this->begin()); }
+    ConstReverseIterator crbegin() const { return ReverseIterator(end()); }
+    ConstReverseIterator crend()   const { return ReverseIterator(begin()); }
 
-
-    /** 
-     *  @brief Initialize a CArray from a function and a custom deleter. The function should return a pointer the 
-     *  array and the number of elements within the array. The deleter d will be called on the data in the destructor.
-     *
-     *  @param f Any function whose return value can be destructured into [data, size]. Data and size are used to
-     *  initialize the array pointer and array size respectively.
-     *
-     *  @param d Any function whose return value can be destructured into [data, size]. Data and size are used to
-     *  initialize the array pointer and array size respectively.
-     */
-    template<typename F>
-    CArray(F f, DeleterType d) : fn_d(d) {
-        auto [data, size] = f();
-        this->d = data;
-        this->nm = size;
-    }
-    /** 
-     *  @brief Initialize a CArray from a function. The function should return a pointer the array and the number of 
-     *  elements within the array.
-     *
-     *  @param f Any function whose return value can be destructured into [data, size]. Data and size are used to
-     *  initialize the array pointer and array size respectively.
-     */
-    template<typename F>
-    CArray(F f) : fn_d([](){}) {
-        auto [data, size] = f();
-        this->d = data;
-        this->nm = size;
-    }
 
     /** 
      *  @brief Initialize a CArray from a C-style array and and a size.
@@ -90,50 +67,52 @@ template<typename T, typename SizeType=size_t, typename D=void(*)(void*)> struct
      *  @param s Number os elements in the array.
      *  initialize the array pointer and array size respectively.
      */
-    CArray(Pointer p, SizeType s) : d(p), nm(s), fn_d([](){}) {}
+    CArray(Pointer p, SizeType s) : m_deleter(), m_data(p), m_count(s)  {}
 
     /** 
      *  @brief Initialize a CArray from a C-style array and and a size.
      *
      *  @param p Pointer to C-style array.
      *  @param s Number os elements in the array.
-     *  @param d Deleter called on pointer at destruction.
      *  initialize the array pointer and array size respectively.
      */
-    CArray(Pointer p, SizeType s, DeleterType d) : d(p), nm(s), fn_d(d) {}
+    CArray(SizeType s) : m_deleter(), m_data(), m_count(s)  {
+        m_data = (ValueType*)std::malloc(sizeof(ValueType) * s);
+    }
+
 
     /** 
      *  @brief Call the deleter on the array.
      */
     ~CArray() {
-        this->fn_d(this->d);
+        m_deleter(m_data);
     }
 
     // size
-    SizeType size() { return this->nm; }
-    const SizeType size() const { return this->nm; }
+    SizeType size() { return m_count; }
+    const SizeType size() const { return m_count; }
 
     // element access
-    Reference operator[](SizeType n) { return this->d[n]; }
-    ConstReference operator[](SizeType n) const { return this->d[n]; }
+    Reference operator[](SizeType n) { return m_data[n]; }
+    ConstReference operator[](SizeType n) const { return m_data[n]; }
     std::optional<Reference> at(SizeType n) {
-        if (n < this->nm)
-            return this->d[n]; 
+        if (n < m_count)
+            return m_data[n]; 
         return std::nullopt;
     }
-    Reference front() { return this->d[0]; }
-    ConstReference front() const { return this->d[0]; }
-    Reference back() { return this->d[this->nm - 1]; }
-    ConstReference back() const { return this->nm[this->nm - 1]; }
+    Reference front() { return m_data[0]; }
+    ConstReference front() const { return m_data[0]; }
+    Reference back() { return m_data[m_count - 1]; }
+    ConstReference back() const { return m_count[m_count - 1]; }
 
 
 
-    Pointer data() { return this->d; }
-    ConstPointer data() const { return this->d; }
+    Pointer data() { return m_data; }
+    ConstPointer data() const { return m_data; }
 
 private:
-    T* d; // data
-    SizeType nm; // number of members
-    DeleterType fn_d;
+    [[no_unique_address]] D m_deleter; //deleter
+    T* m_data; // data
+    SizeType m_count; // number of members
 };
 }

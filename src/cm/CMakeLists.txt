@@ -1,4 +1,8 @@
 add_library(cm)
+target_compile_definitions(cm
+    PRIVATE
+    $<$<CONFIG:Debug>:DEBUG>
+    )
 
 target_sources(cm
     PUBLIC
@@ -7,8 +11,9 @@ target_sources(cm
     types.cxx
     carray.cxx
     move_only_ptr.cxx
+    non_owning_ptr.cxx
     vke.cxx
     )
 target_include_directories(cm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-target_link_libraries(cm PUBLIC ${X11_LIBRARIES})
+target_link_libraries(cm PUBLIC X11::xcb)

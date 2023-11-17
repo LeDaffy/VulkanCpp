@@ -36,11 +36,11 @@ namespace vke {
 
         Result(VkResult& r) : result(r) {}
         Result(VkResult&& r) : result(r) {}
-        void operator=(VkResult& r) { this->result = r; }
-        void operator=(VkResult&& r) { this->result = r; }
+        void operator=(VkResult& r) { result = r; }
+        void operator=(VkResult&& r) { result = r; }
 
-        bool operator==(VkResult& r) { return this->result == r; }
-        bool operator==(VkResult&& r) { return this->result == r; }
+        bool operator==(VkResult& r) { return result == r; }
+        bool operator==(VkResult&& r) { return result == r; }
 
 
         operator CString() const {
@@ -111,7 +111,8 @@ namespace vke {
         
     };
 
-    export struct Instance {
+    export class Instance {
+        public:
         VkInstance instance;
         VkApplicationInfo info_app;
         VkInstanceCreateInfo info_create;
@@ -133,14 +134,14 @@ namespace vke {
                     VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, // VkStructureType sType;
                     nullptr,                                // const void* pNext;
                     0,                                      // VkInstanceCreateFlags flags;
-                    &(this->info_app),                      // const VkApplicationInfo* pApplicationInfo;
+                    &(info_app),                      // const VkApplicationInfo* pApplicationInfo;
                     0,                                      // uint32_t enabledLayerCount;
                     nullptr,                                // const char* const* ppEnabledLayerNames;
                     extensions.size(),                      // uint32_t enabledExtensionCount;
                     extensions.data()                       // const char* const* ppEnabledExtensionNames;
                     })
         {
-            std::vector<VkExtensionProperties> extensions_available = this->available_extensions();
+            CArray<VkExtensionProperties, u32> extensions_available = available_extensions();
 
             for (auto const& e : extensions_available) {
                 std::cout << e.extensionName << std::endl;
@@ -148,12 +149,23 @@ namespace vke {
 
             Result result = vkCreateInstance(&info_create, nullptr, &instance);
             VKE_RESULT_CRASH(result);
+
+            auto validation_layers = available_validation_layers();
         }
-        std::vector<VkExtensionProperties> available_extensions() {
+        CArray<VkLayerProperties, u32> available_validation_layers() {
+            u32 layer_count = 0;
+            Result result = vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
+            VKE_RESULT_CRASH(result);
+            CArray<VkLayerProperties, u32> layers_available(layer_count);
+            result = vkEnumerateInstanceLayerProperties(&layer_count, layers_available.data());
+            VKE_RESULT_CRASH(result);
+            return layers_available;
+        }
+        CArray<VkExtensionProperties, u32> available_extensions() {
             u32 extension_count = 0;
             Result result = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
             VKE_RESULT_CRASH(result);
-            std::vector<VkExtensionProperties> extensions_available(extension_count);
+            CArray<VkExtensionProperties, u32, CFreeDeleter> extensions_available(extension_count);
             result = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, extensions_available.data());
             VKE_RESULT_CRASH(result);
             return extensions_available;
