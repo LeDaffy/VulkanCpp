@@ -69,7 +69,31 @@ namespace window {
 
         // methods
         void poll_events() {
-            x_event = xcb_poll_for_event(x_connection.get());
+            std::unique_ptr<xcb_generic_event_t, CFreeDeleter> x_event(xcb_poll_for_event(x_connection.get()));
+            if (!x_event) return;
+
+            switch (x_event->response_type & ~0x80) {
+                case XCB_KEY_PRESS: {
+                    std::cout << "XCB_KEY_PRESS" << std::endl;
+                    [[maybe_unused]] NonOwningPtr<xcb_key_press_event_t> my_event = reinterpret_cast<xcb_key_press_event_t*>(x_event.get());
+                    break;
+                } case XCB_KEY_RELEASE: {
+                    std::cout << "XCB_KEY_RELEASE" << std::endl;
+                    [[maybe_unused]] NonOwningPtr<xcb_key_release_event_t> my_event = reinterpret_cast<xcb_key_release_event_t*>(x_event.get());
+                    break;
+                } case XCB_BUTTON_PRESS: {
+                    std::cout << "XCB_BUTTON_PRESS" << std::endl;
+                    [[maybe_unused]] NonOwningPtr<xcb_button_press_event_t> my_event = reinterpret_cast<xcb_button_press_event_t*>(x_event.get());
+                    break;
+                } case XCB_BUTTON_RELEASE: {
+                    std::cout << "XCB_BUTTON_RELEASE" << std::endl;
+                    [[maybe_unused]] NonOwningPtr<xcb_button_release_event_t> my_event = reinterpret_cast<xcb_button_release_event_t*>(x_event.get());
+                    break;
+                }
+            }
+        }
+        bool should_close() {
+            return false;
         }
 
         friend struct WindowBuilder;
@@ -107,9 +131,33 @@ namespace window {
 
 
             xcb_cw_t event_mask = XCB_CW_EVENT_MASK;
-            const i32 event_valwin[] = { XCB_EVENT_MASK_EXPOSURE
-                                        | XCB_EVENT_MASK_BUTTON_PRESS
-                                        };
+            const i32 event_valwin[] = { XCB_EVENT_MASK_KEY_PRESS
+                                       | XCB_EVENT_MASK_KEY_RELEASE
+                                       | XCB_EVENT_MASK_BUTTON_PRESS
+                                       | XCB_EVENT_MASK_BUTTON_RELEASE
+                                       | XCB_EVENT_MASK_ENTER_WINDOW
+                                       | XCB_EVENT_MASK_LEAVE_WINDOW
+                                       | XCB_EVENT_MASK_POINTER_MOTION
+                                       | XCB_EVENT_MASK_POINTER_MOTION_HINT
+                                       | XCB_EVENT_MASK_BUTTON_1_MOTION
+                                       | XCB_EVENT_MASK_BUTTON_2_MOTION
+                                       | XCB_EVENT_MASK_BUTTON_3_MOTION
+                                       | XCB_EVENT_MASK_BUTTON_4_MOTION
+                                       | XCB_EVENT_MASK_BUTTON_5_MOTION
+                                       | XCB_EVENT_MASK_BUTTON_MOTION
+                                       | XCB_EVENT_MASK_KEYMAP_STATE
+                                       | XCB_EVENT_MASK_EXPOSURE
+                                       | XCB_EVENT_MASK_VISIBILITY_CHANGE
+                                       | XCB_EVENT_MASK_STRUCTURE_NOTIFY
+                                       | XCB_EVENT_MASK_RESIZE_REDIRECT
+                                       | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY
+                                       | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
+                                       | XCB_EVENT_MASK_FOCUS_CHANGE
+                                       | XCB_EVENT_MASK_PROPERTY_CHANGE
+                                       | XCB_EVENT_MASK_COLOR_MAP_CHANGE
+                                       | XCB_EVENT_MASK_OWNER_GRAB_BUTTON
+                                       };
+
             xcb_create_window(x_connection.get(),            // Connection          
                               XCB_COPY_FROM_PARENT,          // depth (same as root)
                               window,                        // window Id           

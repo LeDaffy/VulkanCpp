@@ -23,7 +23,10 @@ auto main() -> i32
     // std::cout << window << std::endl;;
     vke::Instance vkeinst;
 
-    sleep(5);
+    while (!xwindow.should_close()) {
+        xwindow.poll_events();
+
+    }
 
     // glfwInit();
     // glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
