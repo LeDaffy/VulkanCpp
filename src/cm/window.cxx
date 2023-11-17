@@ -86,14 +86,16 @@ namespace window {
                     // std::cout << "XCB_KEY_PRESS" << std::endl;
                     [[maybe_unused]] NonOwningPtr<xcb_key_press_event_t> event = reinterpret_cast<xcb_key_press_event_t*>(x_event.get());
                     xkb_keysym_t keysym = xkb_state_key_get_one_sym(kb_state, event->detail);
+                    xkb_state_update_key(kb_state, event->detail, XKB_KEY_DOWN);
+
                     char keysym_name[64];
                     xkb_keysym_get_name(keysym, keysym_name, sizeof(keysym_name));
                     std::cout << keysym_name << ": " << keysym << std::endl;
-
                     break;
                 } case XCB_KEY_RELEASE: {
-                    std::cout << "XCB_KEY_RELEASE" << std::endl;
                     [[maybe_unused]] NonOwningPtr<xcb_key_release_event_t> event = reinterpret_cast<xcb_key_release_event_t*>(x_event.get());
+                    xkb_keysym_t keysym = xkb_state_key_get_one_sym(kb_state, event->detail);
+                    xkb_state_update_key(kb_state, event->detail, XKB_KEY_UP);
                     break;
                 } case XCB_BUTTON_PRESS: {
                     std::cout << "XCB_BUTTON_PRESS" << std::endl;
