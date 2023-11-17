@@ -32,10 +32,19 @@ import non_owning_ptr;
 export module window;
 
 struct XCBConnectionDeleter {
-    void operator()(xcb_connection_t* ptr){ std::cout << "XCBConnectionDeleter()" << std::endl; xcb_disconnect(ptr); }
+    void operator()(xcb_connection_t* ptr){ xcb_disconnect(ptr); }
 };
 struct XCBKeySymDeleter {
-    void operator()(xcb_key_symbols_t* ptr){ std::cout << "XCBKeySymDeleter()" << std::endl; xcb_key_symbols_free(ptr); }
+    void operator()(xcb_key_symbols_t* ptr){ xcb_key_symbols_free(ptr); }
+};
+struct XKBStateDeleter {
+    void operator()(xkb_state* ptr){ xkb_state_unref(ptr); }
+};
+struct XKBKeyMapDeleter {
+    void operator()(xkb_keymap* ptr){ xkb_keymap_unref(ptr); }
+};
+struct XKBContextDeleter {
+    void operator()(xkb_context* ptr){ xkb_context_unref(ptr); }
 };
 namespace window {
 
@@ -61,9 +70,8 @@ namespace window {
     export struct Window {
         Attributes attributes;
         std::unique_ptr<xcb_connection_t, XCBConnectionDeleter> x_connection;
-        std::unique_ptr<xcb_key_symbols_t, XCBKeySymDeleter> x_keys;
         xcb_window_t x_window;
-        NonOwningPtr<xkb_state> kb_state;
+        std::unique_ptr<xkb_state, XKBStateDeleter> kb_state;
         NonOwningPtr<xcb_generic_event_t> x_event;
 
         ~Window() = default;
@@ -85,8 +93,8 @@ namespace window {
                 case XCB_KEY_PRESS: {
                     // std::cout << "XCB_KEY_PRESS" << std::endl;
                     [[maybe_unused]] NonOwningPtr<xcb_key_press_event_t> event = reinterpret_cast<xcb_key_press_event_t*>(x_event.get());
-                    xkb_keysym_t keysym = xkb_state_key_get_one_sym(kb_state, event->detail);
-                    xkb_state_update_key(kb_state, event->detail, XKB_KEY_DOWN);
+                    xkb_keysym_t keysym = xkb_state_key_get_one_sym(kb_state.get(), event->detail);
+                    xkb_state_update_key(kb_state.get(), event->detail, XKB_KEY_DOWN);
 
                     char keysym_name[64];
                     xkb_keysym_get_name(keysym, keysym_name, sizeof(keysym_name));
@@ -94,8 +102,8 @@ namespace window {
                     break;
                 } case XCB_KEY_RELEASE: {
                     [[maybe_unused]] NonOwningPtr<xcb_key_release_event_t> event = reinterpret_cast<xcb_key_release_event_t*>(x_event.get());
-                    xkb_keysym_t keysym = xkb_state_key_get_one_sym(kb_state, event->detail);
-                    xkb_state_update_key(kb_state, event->detail, XKB_KEY_UP);
+                    xkb_keysym_t keysym = xkb_state_key_get_one_sym(kb_state.get(), event->detail);
+                    xkb_state_update_key(kb_state.get(), event->detail, XKB_KEY_UP);
                     break;
                 } case XCB_BUTTON_PRESS: {
                     std::cout << "XCB_BUTTON_PRESS" << std::endl;
@@ -116,11 +124,10 @@ namespace window {
         friend std::ostream &operator<<(std::ostream &os, Window& w);
         private:
         Window() {}
-        Window(Attributes attributes, std::unique_ptr<xcb_connection_t, XCBConnectionDeleter>&& x_connection, xcb_window_t x_window, NonOwningPtr<xkb_state> kb_state) 
+        Window(Attributes attributes, std::unique_ptr<xcb_connection_t, XCBConnectionDeleter>&& x_connection, xcb_window_t x_window, std::unique_ptr<xkb_state, XKBStateDeleter>&& kb_state) 
             : attributes(attributes), x_connection(std::move(x_connection)), 
-            x_keys(xcb_key_symbols_alloc(x_connection.get())),
             x_window(x_window),
-            kb_state(kb_state)
+            kb_state(std::move(kb_state))
         {}
     };
     std::ostream &operator<<(std::ostream &os, Window& w) {
@@ -146,8 +153,8 @@ namespace window {
             std::unique_ptr<xcb_connection_t, XCBConnectionDeleter> x_connection(xcb_connect (nullptr, nullptr));
 
             // keyboard setup
-            NonOwningPtr<xkb_context> kb_ktx(xkb_context_new(XKB_CONTEXT_NO_FLAGS));
-            if (!kb_ktx) {
+            std::unique_ptr<xkb_context, XKBContextDeleter> kb_context(xkb_context_new(XKB_CONTEXT_NO_FLAGS));
+            if (!kb_context) {
                 CRASH("Couldn't create keyboard context");
             }
             xkb_x11_setup_xkb_extension(x_connection.get(), XKB_X11_MIN_MAJOR_XKB_VERSION, XKB_X11_MIN_MINOR_XKB_VERSION, XKB_X11_SETUP_XKB_EXTENSION_NO_FLAGS, nullptr,  nullptr,  nullptr,  nullptr);
@@ -155,13 +162,13 @@ namespace window {
             i32 kb_device_id = xkb_x11_get_core_keyboard_device_id(x_connection.get());
             if (kb_device_id == -1) { CRASH("Couldn't get kb device id"); }
 
-            NonOwningPtr<xkb_keymap> keymap = xkb_x11_keymap_new_from_device(kb_ktx, x_connection.get(), kb_device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
+            std::unique_ptr<xkb_keymap, XKBKeyMapDeleter> keymap(xkb_x11_keymap_new_from_device(kb_context.get(), x_connection.get(), kb_device_id, XKB_KEYMAP_COMPILE_NO_FLAGS));
             if (!keymap) { CRASH("Couldn't get kb device id"); }
 
 
-            xkb_x11_keymap_new_from_device(kb_ktx.get(), x_connection.get(), kb_device_id,  (xkb_keymap_compile_flags)0);
+            xkb_x11_keymap_new_from_device(kb_context.get(), x_connection.get(), kb_device_id,  (xkb_keymap_compile_flags)0);
 
-            NonOwningPtr<xkb_state> kb_state = xkb_x11_state_new_from_device(keymap, x_connection.get(), kb_device_id);
+            std::unique_ptr<xkb_state, XKBStateDeleter> kb_state(xkb_x11_state_new_from_device(keymap.get(), x_connection.get(), kb_device_id));
             if (!kb_state) { CRASH("Couldn't get kb device id"); }
 
             NonOwningPtr<const xcb_setup_t> x_setup = xcb_get_setup(x_connection.get());
@@ -214,7 +221,7 @@ namespace window {
             xcb_flush(x_connection.get());
 
 
-            return Window(attributes, std::move(x_connection), window, kb_state);
+            return Window(attributes, std::move(x_connection), window, std::move(kb_state));
         }
         private:
     };
