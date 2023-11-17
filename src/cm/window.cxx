@@ -14,6 +14,7 @@ module;
 #include <memory>
 
 #include <xcb/xcb.h>
+#include <xcb/xproto.h>
 
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_xcb.h>
@@ -53,6 +54,9 @@ namespace window {
     export struct Window {
         Attributes attributes;
         std::unique_ptr<xcb_connection_t, XCBConnectionDeleter> x_connection;
+        xcb_window_t x_window;
+        NonOwningPtr<xcb_generic_event_t> x_event;
+
         ~Window() = default;
         // Move Constructor
         Window(Window&& o) = default;
@@ -63,11 +67,16 @@ namespace window {
         // Copy assignment
         Window& operator=(Window& o) = delete;
 
+        // methods
+        void poll_events() {
+            x_event = xcb_poll_for_event(x_connection.get());
+        }
+
         friend struct WindowBuilder;
         friend std::ostream &operator<<(std::ostream &os, Window& w);
         private:
         Window() {}
-        Window(Attributes attributes, std::unique_ptr<xcb_connection_t, XCBConnectionDeleter>&& x_connection) : attributes(attributes), x_connection(std::move(x_connection)) {}
+        Window(Attributes attributes, std::unique_ptr<xcb_connection_t, XCBConnectionDeleter>&& x_connection, xcb_window_t x_window) : attributes(attributes), x_connection(std::move(x_connection)), x_window(x_window) {}
     };
     std::ostream &operator<<(std::ostream &os, Window& w) {
         return os << "Window (" << &w << "): { " << "asdf";
@@ -96,22 +105,28 @@ namespace window {
             NonOwningPtr<xcb_screen_t> x_screen     = x_iter.data;
             xcb_window_t window = xcb_generate_id(x_connection.get());
 
-            xcb_create_window (x_connection.get(),            // Connection          
-                               XCB_COPY_FROM_PARENT,          // depth (same as root)
-                               window,                        // window Id           
-                               x_screen->root,                // parent window       
-                               0, 0,                          // x, y                
-                               150, 150,                      // width, height       
-                               10,                            // border_width        
-                               XCB_WINDOW_CLASS_INPUT_OUTPUT, // class               
-                               x_screen->root_visual,         // visual              
-                               0, NULL );                     // masks, not used yet 
+
+            xcb_cw_t event_mask = XCB_CW_EVENT_MASK;
+            const i32 event_valwin[] = { XCB_EVENT_MASK_EXPOSURE
+                                        | XCB_EVENT_MASK_BUTTON_PRESS
+                                        };
+            xcb_create_window(x_connection.get(),            // Connection          
+                              XCB_COPY_FROM_PARENT,          // depth (same as root)
+                              window,                        // window Id           
+                              x_screen->root,                // parent window       
+                              0, 0,                          // x, y                
+                              150, 150,                      // width, height       
+                              10,                            // border_width        
+                              XCB_WINDOW_CLASS_INPUT_OUTPUT, // class               
+                              x_screen->root_visual,         // visual              
+                              event_mask, 
+                              reinterpret_cast<const void*>(event_valwin) );
              /* Map the window on the screen */
             xcb_map_window(x_connection.get(), window);
             xcb_flush(x_connection.get());
 
 
-            return Window(attributes, std::move(x_connection));
+            return Window(attributes, std::move(x_connection), window);
         }
         private:
     };
