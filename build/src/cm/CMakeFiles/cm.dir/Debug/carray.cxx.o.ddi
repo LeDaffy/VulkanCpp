@@ -1,0 +1,16 @@
+{
+  "revision": 0,
+  "rules": [
+    {
+      "primary-output": "src/cm/CMakeFiles/cm.dir/Debug/carray.cxx.o",
+      "provides": [
+        {
+          "is-interface": true,
+          "logical-name": "carray",
+          "source-path": "/home/conor/Dev/VkCpp/src/cm/carray.cxx"
+        }
+      ]
+    }
+  ],
+  "version": 1
+}

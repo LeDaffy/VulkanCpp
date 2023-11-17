@@ -1,0 +1,92 @@
+{
+	"bmi-installation" : null,
+	"compiler-frontend-variant" : "GNU",
+	"compiler-id" : "Clang",
+	"compiler-simulate-id" : "",
+	"config" : "RelWithDebInfo",
+	"cxx-modules" : 
+	{
+		"src/cm/CMakeFiles/cm.dir/RelWithDebInfo/carray.cxx.o" : 
+		{
+			"bmi-only" : false,
+			"destination" : null,
+			"name" : "CXX_MODULES",
+			"relative-directory" : "",
+			"source" : "/home/conor/Dev/VkCpp/src/cm/carray.cxx",
+			"type" : "CXX_MODULES",
+			"visibility" : "PUBLIC"
+		},
+		"src/cm/CMakeFiles/cm.dir/RelWithDebInfo/log.cxx.o" : 
+		{
+			"bmi-only" : false,
+			"destination" : null,
+			"name" : "CXX_MODULES",
+			"relative-directory" : "",
+			"source" : "/home/conor/Dev/VkCpp/src/cm/log.cxx",
+			"type" : "CXX_MODULES",
+			"visibility" : "PUBLIC"
+		},
+		"src/cm/CMakeFiles/cm.dir/RelWithDebInfo/move_only_ptr.cxx.o" : 
+		{
+			"bmi-only" : false,
+			"destination" : null,
+			"name" : "CXX_MODULES",
+			"relative-directory" : "",
+			"source" : "/home/conor/Dev/VkCpp/src/cm/move_only_ptr.cxx",
+			"type" : "CXX_MODULES",
+			"visibility" : "PUBLIC"
+		},
+		"src/cm/CMakeFiles/cm.dir/RelWithDebInfo/non_owning_ptr.cxx.o" : 
+		{
+			"bmi-only" : false,
+			"destination" : null,
+			"name" : "CXX_MODULES",
+			"relative-directory" : "",
+			"source" : "/home/conor/Dev/VkCpp/src/cm/non_owning_ptr.cxx",
+			"type" : "CXX_MODULES",
+			"visibility" : "PUBLIC"
+		},
+		"src/cm/CMakeFiles/cm.dir/RelWithDebInfo/types.cxx.o" : 
+		{
+			"bmi-only" : false,
+			"destination" : null,
+			"name" : "CXX_MODULES",
+			"relative-directory" : "",
+			"source" : "/home/conor/Dev/VkCpp/src/cm/types.cxx",
+			"type" : "CXX_MODULES",
+			"visibility" : "PUBLIC"
+		},
+		"src/cm/CMakeFiles/cm.dir/RelWithDebInfo/vke.cxx.o" : 
+		{
+			"bmi-only" : false,
+			"destination" : null,
+			"name" : "CXX_MODULES",
+			"relative-directory" : "",
+			"source" : "/home/conor/Dev/VkCpp/src/cm/vke.cxx",
+			"type" : "CXX_MODULES",
+			"visibility" : "PUBLIC"
+		},
+		"src/cm/CMakeFiles/cm.dir/RelWithDebInfo/window.cxx.o" : 
+		{
+			"bmi-only" : false,
+			"destination" : null,
+			"name" : "CXX_MODULES",
+			"relative-directory" : "",
+			"source" : "/home/conor/Dev/VkCpp/src/cm/window.cxx",
+			"type" : "CXX_MODULES",
+			"visibility" : "PUBLIC"
+		}
+	},
+	"dir-cur-bld" : "/home/conor/Dev/VkCpp/build/src/cm",
+	"dir-cur-src" : "/home/conor/Dev/VkCpp/src/cm",
+	"dir-top-bld" : "/home/conor/Dev/VkCpp/build",
+	"dir-top-src" : "/home/conor/Dev/VkCpp",
+	"exports" : [],
+	"include-dirs" : 
+	[
+		"/home/conor/Dev/VkCpp/src/cm/include"
+	],
+	"language" : "CXX",
+	"linked-target-dirs" : [],
+	"module-dir" : "/home/conor/Dev/VkCpp/build/src/cm/CMakeFiles/cm.dir/RelWithDebInfo"
+}

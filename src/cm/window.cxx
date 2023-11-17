@@ -18,18 +18,21 @@ module;
 #include <xcb/xcb_keysyms.h>
 #include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-x11.h>
+#include <xkbcommon/xkbcommon-keysyms.h>
 
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_xcb.h>
 
+#include <log.hxx>
 
-#define CRASH(msg) std::cout << (msg) << std::endl; std::abort();
+
 
 import types;
 import carray;
 import move_only_ptr;
 import non_owning_ptr;
 export module window;
+import log;
 
 struct XCBConnectionDeleter {
     void operator()(xcb_connection_t* ptr){ xcb_disconnect(ptr); }
@@ -67,6 +70,15 @@ namespace window {
         Attributes(WindowVec2<u32> dimensions, WindowVec2<u32> position, CString name) :
             dimensions(dimensions), position(position), name(name) {}
     };
+
+    struct EventQueue {
+        NonOwningPtr<xcb_generic_event_t> prev;
+        NonOwningPtr<xcb_generic_event_t> curr;
+        NonOwningPtr<xcb_generic_event_t> next;
+
+        EventQueue() : prev(nullptr), curr(nullptr), next(nullptr) {}
+    };
+
     export struct Window {
         Attributes attributes;
         std::unique_ptr<xcb_connection_t, XCBConnectionDeleter> x_connection;
@@ -96,9 +108,12 @@ namespace window {
                     xkb_keysym_t keysym = xkb_state_key_get_one_sym(kb_state.get(), event->detail);
                     xkb_state_update_key(kb_state.get(), event->detail, XKB_KEY_DOWN);
 
+#ifdef DEBUG
                     char keysym_name[64];
                     xkb_keysym_get_name(keysym, keysym_name, sizeof(keysym_name));
                     std::cout << keysym_name << ": " << keysym << std::endl;
+                    LOGINFO(keysym_name);
+#endif
                     break;
                 } case XCB_KEY_RELEASE: {
                     [[maybe_unused]] NonOwningPtr<xcb_key_release_event_t> event = reinterpret_cast<xcb_key_release_event_t*>(x_event.get());
@@ -154,22 +169,21 @@ namespace window {
 
             // keyboard setup
             std::unique_ptr<xkb_context, XKBContextDeleter> kb_context(xkb_context_new(XKB_CONTEXT_NO_FLAGS));
-            if (!kb_context) {
-                CRASH("Couldn't create keyboard context");
-            }
+            if (!kb_context) { LOGERROR("Couldn't create keyboard context"); std::abort(); }
+
             xkb_x11_setup_xkb_extension(x_connection.get(), XKB_X11_MIN_MAJOR_XKB_VERSION, XKB_X11_MIN_MINOR_XKB_VERSION, XKB_X11_SETUP_XKB_EXTENSION_NO_FLAGS, nullptr,  nullptr,  nullptr,  nullptr);
 
             i32 kb_device_id = xkb_x11_get_core_keyboard_device_id(x_connection.get());
-            if (kb_device_id == -1) { CRASH("Couldn't get kb device id"); }
+            if (kb_device_id == -1) { LOGERROR("Couldn't get kb device id"); std::abort(); }
 
             std::unique_ptr<xkb_keymap, XKBKeyMapDeleter> keymap(xkb_x11_keymap_new_from_device(kb_context.get(), x_connection.get(), kb_device_id, XKB_KEYMAP_COMPILE_NO_FLAGS));
-            if (!keymap) { CRASH("Couldn't get kb device id"); }
+            if (!keymap) { LOGERROR("Couldn't get kb device id"); std::abort(); }
 
 
             xkb_x11_keymap_new_from_device(kb_context.get(), x_connection.get(), kb_device_id,  (xkb_keymap_compile_flags)0);
 
             std::unique_ptr<xkb_state, XKBStateDeleter> kb_state(xkb_x11_state_new_from_device(keymap.get(), x_connection.get(), kb_device_id));
-            if (!kb_state) { CRASH("Couldn't get kb device id"); }
+            if (!kb_state) { LOGERROR("Couldn't get kb device id"); std::abort(); }
 
             NonOwningPtr<const xcb_setup_t> x_setup = xcb_get_setup(x_connection.get());
             xcb_screen_iterator_t x_iter            = xcb_setup_roots_iterator (x_setup);

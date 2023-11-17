@@ -1,0 +1,2 @@
+-x c++-module
+-fmodule-output=src/cm/CMakeFiles/cm.dir/Release/non_owning_ptr.pcm

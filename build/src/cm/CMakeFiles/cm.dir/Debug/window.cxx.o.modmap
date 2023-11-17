@@ -1,0 +1,7 @@
+-x c++-module
+-fmodule-output=src/cm/CMakeFiles/cm.dir/Debug/window.pcm
+-fmodule-file=types=src/cm/CMakeFiles/cm.dir/Debug/types.pcm
+-fmodule-file=carray=src/cm/CMakeFiles/cm.dir/Debug/carray.pcm
+-fmodule-file=move_only_ptr=src/cm/CMakeFiles/cm.dir/Debug/move_only_ptr.pcm
+-fmodule-file=non_owning_ptr=src/cm/CMakeFiles/cm.dir/Debug/non_owning_ptr.pcm
+-fmodule-file=log=src/cm/CMakeFiles/cm.dir/Debug/log.pcm

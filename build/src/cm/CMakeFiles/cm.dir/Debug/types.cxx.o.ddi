@@ -1,0 +1,16 @@
+{
+  "revision": 0,
+  "rules": [
+    {
+      "primary-output": "src/cm/CMakeFiles/cm.dir/Debug/types.cxx.o",
+      "provides": [
+        {
+          "is-interface": true,
+          "logical-name": "types",
+          "source-path": "/home/conor/Dev/VkCpp/src/cm/types.cxx"
+        }
+      ]
+    }
+  ],
+  "version": 1
+}

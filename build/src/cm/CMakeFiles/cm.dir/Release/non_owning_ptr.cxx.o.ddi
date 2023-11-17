@@ -1,0 +1,16 @@
+{
+  "revision": 0,
+  "rules": [
+    {
+      "primary-output": "src/cm/CMakeFiles/cm.dir/Release/non_owning_ptr.cxx.o",
+      "provides": [
+        {
+          "is-interface": true,
+          "logical-name": "non_owning_ptr",
+          "source-path": "/home/conor/Dev/VkCpp/src/cm/non_owning_ptr.cxx"
+        }
+      ]
+    }
+  ],
+  "version": 1
+}

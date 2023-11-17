@@ -1,0 +1,3 @@
+-x c++-module
+-fmodule-output=src/cm/CMakeFiles/cm.dir/Debug/log.pcm
+-fmodule-file=types=src/cm/CMakeFiles/cm.dir/Debug/types.pcm

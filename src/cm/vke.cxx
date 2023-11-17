@@ -18,9 +18,12 @@ module;
 
 #include <vke_macro.hxx>
 
+#include <log.hxx>
+
 
 import types;
 import carray;
+import log;
 export module vke;
 
 namespace vke {
@@ -144,7 +147,7 @@ namespace vke {
             CArray<VkExtensionProperties, u32> extensions_available = available_extensions();
 
             for (auto const& e : extensions_available) {
-                std::cout << e.extensionName << std::endl;
+                LOGINFO(e.extensionName);
             }
 
             Result result = vkCreateInstance(&info_create, nullptr, &instance);

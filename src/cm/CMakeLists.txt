@@ -13,6 +13,7 @@ target_sources(cm
     move_only_ptr.cxx
     non_owning_ptr.cxx
     vke.cxx
+    log.cxx
     )
 target_include_directories(cm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 

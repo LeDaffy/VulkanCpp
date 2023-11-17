@@ -1,0 +1,27 @@
+{
+  "revision": 0,
+  "rules": [
+    {
+      "primary-output": "src/cm/CMakeFiles/cm.dir/Release/vke.cxx.o",
+      "provides": [
+        {
+          "is-interface": true,
+          "logical-name": "vke",
+          "source-path": "/home/conor/Dev/VkCpp/src/cm/vke.cxx"
+        }
+      ],
+      "requires": [
+        {
+          "logical-name": "types"
+        },
+        {
+          "logical-name": "carray"
+        },
+        {
+          "logical-name": "log"
+        }
+      ]
+    }
+  ],
+  "version": 1
+}
