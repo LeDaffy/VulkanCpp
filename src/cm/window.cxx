@@ -72,11 +72,16 @@ namespace window {
     };
 
     struct EventQueue {
-        NonOwningPtr<xcb_generic_event_t> prev;
-        NonOwningPtr<xcb_generic_event_t> curr;
-        NonOwningPtr<xcb_generic_event_t> next;
+        std::unique_ptr<xcb_generic_event_t, CFreeDeleter> prev;
+        std::unique_ptr<xcb_generic_event_t, CFreeDeleter> curr;
+        std::unique_ptr<xcb_generic_event_t, CFreeDeleter> next;
 
         EventQueue() : prev(nullptr), curr(nullptr), next(nullptr) {}
+        void push(std::unique_ptr<xcb_generic_event_t, CFreeDeleter>&& e) {
+            prev.swap(e);
+            prev.swap(curr);
+            curr.swap(next);
+        }
     };
 
     export struct Window {
@@ -84,7 +89,7 @@ namespace window {
         std::unique_ptr<xcb_connection_t, XCBConnectionDeleter> x_connection;
         xcb_window_t x_window;
         std::unique_ptr<xkb_state, XKBStateDeleter> kb_state;
-        NonOwningPtr<xcb_generic_event_t> x_event;
+        EventQueue event_queue;
 
         ~Window() = default;
         // Move Constructor
@@ -101,10 +106,14 @@ namespace window {
             std::unique_ptr<xcb_generic_event_t, CFreeDeleter> x_event(xcb_poll_for_event(x_connection.get()));
             if (!x_event) return;
 
-            switch (x_event->response_type & ~0x80) {
+            event_queue.push(std::move(x_event));
+            if (!event_queue.curr) return;
+
+
+            switch (event_queue.curr->response_type & ~0x80) {
                 case XCB_KEY_PRESS: {
                     // std::cout << "XCB_KEY_PRESS" << std::endl;
-                    [[maybe_unused]] NonOwningPtr<xcb_key_press_event_t> event = reinterpret_cast<xcb_key_press_event_t*>(x_event.get());
+                    [[maybe_unused]] NonOwningPtr<xcb_key_press_event_t> event = reinterpret_cast<xcb_key_press_event_t*>(event_queue.curr.get());
                     xkb_keysym_t keysym = xkb_state_key_get_one_sym(kb_state.get(), event->detail);
                     xkb_state_update_key(kb_state.get(), event->detail, XKB_KEY_DOWN);
 
@@ -116,17 +125,17 @@ namespace window {
 #endif
                     break;
                 } case XCB_KEY_RELEASE: {
-                    [[maybe_unused]] NonOwningPtr<xcb_key_release_event_t> event = reinterpret_cast<xcb_key_release_event_t*>(x_event.get());
+                    [[maybe_unused]] NonOwningPtr<xcb_key_release_event_t> event = reinterpret_cast<xcb_key_release_event_t*>(event_queue.curr.get());
                     xkb_keysym_t keysym = xkb_state_key_get_one_sym(kb_state.get(), event->detail);
                     xkb_state_update_key(kb_state.get(), event->detail, XKB_KEY_UP);
                     break;
                 } case XCB_BUTTON_PRESS: {
                     std::cout << "XCB_BUTTON_PRESS" << std::endl;
-                    [[maybe_unused]] NonOwningPtr<xcb_button_press_event_t> event = reinterpret_cast<xcb_button_press_event_t*>(x_event.get());
+                    [[maybe_unused]] NonOwningPtr<xcb_button_press_event_t> event = reinterpret_cast<xcb_button_press_event_t*>(event_queue.curr.get());
                     break;
                 } case XCB_BUTTON_RELEASE: {
                     std::cout << "XCB_BUTTON_RELEASE" << std::endl;
-                    [[maybe_unused]] NonOwningPtr<xcb_button_release_event_t> event = reinterpret_cast<xcb_button_release_event_t*>(x_event.get());
+                    [[maybe_unused]] NonOwningPtr<xcb_button_release_event_t> event = reinterpret_cast<xcb_button_release_event_t*>(event_queue.curr.get());
                     break;
                 }
             }
