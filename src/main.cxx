@@ -4,10 +4,7 @@
 #include <vector>
 #include <cassert>   // I include this to test return values the lazy way
 #include <unistd.h>   // So we got the profile for 10 seconds
-
-
-// #define GLFW_INCLUDE_VULKAN
-// #include <GLFW/glfw3.h>
+#include <ranges>
 #include <keycode.hxx>
 
 import window;
@@ -16,13 +13,24 @@ import vke;
 
 auto main() -> i32
 {
+    auto even = [](int i) { return 0 == i % 2; };
+    auto square = [](int i) { return i * i; };
+
+    for (int i : std::views::iota(0, 6)
+            | std::views::filter(even)
+            | std::views::transform(square))
+        std::cout << i << ' ';
+    std::cout << '\n';
     auto xwindow = window::WindowBuilder()
-                       .with_name("NCAD 3D")
-                       .with_dimensions(1280, 720)
-                       .with_position(1280/2, 720/2)
-                       .build();
+        .with_name("NCAD 3D")
+        .with_dimensions(1280, 720)
+        .with_position(1280/2, 720/2)
+        .build();
     vke::Instance vkeinst;
 
+    for (int i : std::views::iota(1, 10))
+        std::cout << i << ' ';
+    std::cout << '\n';
     while (!xwindow.should_close()) {
         xwindow.poll_events();
         if (xwindow.keys.is_pressed(KeyCode::space)) {
@@ -47,9 +55,12 @@ auto main() -> i32
         if (xwindow.keys.is_down(KeyCode::w)) {
             std::cout << "w held" << std::endl;
         }
-        if (xwindow.keys.is_down(KeyCode::Control_L) && xwindow.keys.is_pressed(KeyCode::c)) {
-            std::cout << "Ctrl-c pressed" << std::endl;
-            break;
+        // if (xwindow.keys.is_down(KeyCode::Control_L) && xwindow.keys.is_pressed(KeyCode::c)) {
+        //     std::cout << "Ctrl-c pressed" << std::endl;
+        //     break;
+        // }
+        if (xwindow.keys.is_down(KeyCode::Control_L) && xwindow.keys.is_down(KeyCode::Alt_L) && xwindow.keys.is_pressed(KeyCode::C)) {
+            std::cout << "Ctrl + Alt + Shift + C" << std::endl;
         }
 
     }

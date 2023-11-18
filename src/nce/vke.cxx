@@ -5,6 +5,7 @@ module;
 #include <cstring>
 #include <expected>
 #include <iostream>
+#include <optional>
 #include <memory>
 #include <tuple>
 #include <map>
@@ -130,7 +131,7 @@ namespace vke {
         VkInstanceCreateInfo info_create;
 
         constexpr static std::array<CString, 2> extensions = {"VK_KHR_surface", "VK_KHR_xcb_surface"};
-        VkPhysicalDevice physicalDevice;
+        VkPhysicalDevice physical_device;
 
 
         Instance() : 
@@ -154,7 +155,7 @@ namespace vke {
                     extensions.size(),                      // uint32_t enabledExtensionCount;
                     extensions.data()                       // const char* const* ppEnabledExtensionNames;
                     }),
-            physicalDevice(VK_NULL_HANDLE)
+            physical_device(VK_NULL_HANDLE)
         {
             CArray<VkExtensionProperties, u32> extensions_available = available_extensions();
 
@@ -179,7 +180,6 @@ namespace vke {
             }
 
             auto devices = available_physical_devices();
-            VkPhysicalDevice physical_device = VK_NULL_HANDLE;
             // Use an ordered map to automatically sort candidates by increasing score
             std::multimap<int, VkPhysicalDevice> candidates;
             for (auto d : devices) {
@@ -203,8 +203,27 @@ namespace vke {
             vkGetPhysicalDeviceProperties(physical_device, &device_properties);
             VkPhysicalDeviceFeatures device_features;
             vkGetPhysicalDeviceFeatures(physical_device, &device_features);
-            std::cout << "Selected device: " << device_properties.deviceName << std::endl;
+            std::cout << "Selected Vulkan device: " << device_properties.deviceName << std::endl;
 
+        }
+        struct QueueFamilyIndices {
+            std::optional<u32> graphics_family;
+        };
+        QueueFamilyIndices find_queue_families(VkPhysicalDevice device) {
+            QueueFamilyIndices indices;
+            u32 queue_family_count = 0;
+            vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nullptr);
+            CArray<VkQueueFamilyProperties, u32> queue_families(queue_family_count);
+            vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
+            int i = 0;
+            //for (const auto [index, queue_family] : queue_families | std::views::enumerate) {
+            //    if (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            //        indices.graphics_family = i;
+            //    }
+            //    i++;
+            //}
+
+            return {};
         }
         u32 rate_device(VkPhysicalDevice device) {
             VkPhysicalDeviceProperties device_properties;
@@ -238,7 +257,7 @@ namespace vke {
             for (auto layer_name : layers) {
                 bool layer_found = false;
                 for (auto layer_available : layers_available) {
-                std::cout << "Layer_name: " <<  layer_available.layerName << std::endl;
+                    std::cout << "Layer_name: " <<  layer_available.layerName << std::endl;
                     if (strcmp(layer_name, layer_available.layerName) == 0) {
                         layer_found = true;
                         break;

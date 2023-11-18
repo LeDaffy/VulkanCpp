@@ -4,7 +4,6 @@ module;
 #include <string>
 #include <format>
 #include <string_view>
-#include <ranges>
 #include <cstddef>
 #include <vector>
 #include <algorithm>
