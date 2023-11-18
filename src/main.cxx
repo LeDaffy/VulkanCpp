@@ -29,6 +29,10 @@ auto main() -> i32
         if (xwindow.keys.is_pressed(KeyCode::space)) {
             std::cout << "Pressed space" << std::endl;
         }
+        if (xwindow.keys.is_pressed(KeyCode::q)) {
+            std::cout << "q pressed" << std::endl;
+            break;
+        }
 
     }
 
