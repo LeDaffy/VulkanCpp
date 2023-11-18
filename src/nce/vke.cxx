@@ -7,6 +7,8 @@ module;
 #include <iostream>
 #include <memory>
 #include <tuple>
+#include <map>
+
 
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
@@ -128,6 +130,8 @@ namespace vke {
         VkInstanceCreateInfo info_create;
 
         constexpr static std::array<CString, 2> extensions = {"VK_KHR_surface", "VK_KHR_xcb_surface"};
+        VkPhysicalDevice physicalDevice;
+
 
         Instance() : 
             instance(nullptr),
@@ -149,7 +153,8 @@ namespace vke {
                     nullptr,                                // const char* const* ppEnabledLayerNames;
                     extensions.size(),                      // uint32_t enabledExtensionCount;
                     extensions.data()                       // const char* const* ppEnabledExtensionNames;
-                    })
+                    }),
+            physicalDevice(VK_NULL_HANDLE)
         {
             CArray<VkExtensionProperties, u32> extensions_available = available_extensions();
 
@@ -173,9 +178,61 @@ namespace vke {
                 VKE_RESULT_CRASH(result);
             }
 
+            auto devices = available_physical_devices();
+            VkPhysicalDevice physical_device = VK_NULL_HANDLE;
+            // Use an ordered map to automatically sort candidates by increasing score
+            std::multimap<int, VkPhysicalDevice> candidates;
+            for (auto d : devices) {
+                u32 score = rate_device(d);
+                candidates.insert(std::make_pair(score, d));
+            }
 
+             // Check if the best candidate is suitable at all
+            if (candidates.rbegin()->first > 0) {
+                physical_device = candidates.rbegin()->second;
+            } else {
+                LOGERROR("GPU Not Supported");
+                std::abort();
+            }
+            if (physical_device == VK_NULL_HANDLE) {
+                LOGERROR("GPU Not Supported");
+                std::abort();
+            }
+
+            VkPhysicalDeviceProperties device_properties;
+            vkGetPhysicalDeviceProperties(physical_device, &device_properties);
+            VkPhysicalDeviceFeatures device_features;
+            vkGetPhysicalDeviceFeatures(physical_device, &device_features);
+            std::cout << "Selected device: " << device_properties.deviceName << std::endl;
 
         }
+        u32 rate_device(VkPhysicalDevice device) {
+            VkPhysicalDeviceProperties device_properties;
+            vkGetPhysicalDeviceProperties(device, &device_properties);
+            VkPhysicalDeviceFeatures device_features;
+            vkGetPhysicalDeviceFeatures(device, &device_features);
+            u32 score = 0;
+
+            // Discrete GPUs have a significant performance advantage
+            if (device_properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+                score += 1000;
+            }
+
+            // Maximum possible size of textures affects graphics quality
+            score += device_properties.limits.maxImageDimension2D;
+
+            return score;
+        }
+        bool is_physical_device_suitable(VkPhysicalDevice device) {
+            VkPhysicalDeviceProperties device_properties;
+            vkGetPhysicalDeviceProperties(device, &device_properties);
+            VkPhysicalDeviceFeatures device_features;
+            vkGetPhysicalDeviceFeatures(device, &device_features);
+            std::cout << device_properties.deviceName << '\n';
+
+            return true;
+        }
+
         bool check_validation_layer_support(std::array<CString, 1> layers) {
             auto layers_available = available_validation_layers();
             for (auto layer_name : layers) {
@@ -193,7 +250,20 @@ namespace vke {
             }
             return true;
         }
-        CArray<VkLayerProperties, u32> available_validation_layers() {
+        [[nodiscard]] CArray<VkPhysicalDevice, u32> available_physical_devices() {
+            u32 device_count;
+            vke::Result result = vkEnumeratePhysicalDevices(instance.get(), &device_count, nullptr);
+            VKE_RESULT_CRASH(result);
+            if (device_count == 0) {
+                LOGERROR("Vulkan not supported on this device");
+                std::abort();
+            }
+            CArray<VkPhysicalDevice, u32> devices_available(device_count);
+            result = vkEnumeratePhysicalDevices(instance.get(), &device_count, devices_available.data());
+            VKE_RESULT_CRASH(result);
+            return devices_available;
+        }
+        [[nodiscard]] CArray<VkLayerProperties, u32> available_validation_layers() {
             u32 layer_count = 0;
             vke::Result result = vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
             VKE_RESULT_CRASH(result);
@@ -202,7 +272,7 @@ namespace vke {
             VKE_RESULT_CRASH(result);
             return layers_available;
         }
-        CArray<VkExtensionProperties, u32> available_extensions() {
+        [[nodiscard]] CArray<VkExtensionProperties, u32> available_extensions() {
             u32 extension_count = 0;
             vke::Result result = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
             VKE_RESULT_CRASH(result);

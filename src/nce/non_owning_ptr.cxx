@@ -52,7 +52,7 @@ template<typename T> class NonOwningPtr {
 
     friend std::ostream &operator<<(std::ostream &os, NonOwningPtr<T>& m) { return os << m.m_data; }
 
-    Pointer get() { return m_data; }
+    [[nodiscard]] Pointer get() { return m_data; }
 
 
     private:

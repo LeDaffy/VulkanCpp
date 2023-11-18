@@ -231,7 +231,7 @@ namespace window {
             attributes.name = name;
             return *this;
         }
-        auto build() -> Window {
+        [[nodiscard]] auto build() -> Window {
             /* Open the connection to the X server */
             std::unique_ptr<xcb_connection_t, XCBConnectionDeleter> x_connection(xcb_connect (nullptr, nullptr));
 

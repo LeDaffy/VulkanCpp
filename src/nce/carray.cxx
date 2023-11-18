@@ -87,26 +87,26 @@ template<typename T, typename SizeType=size_t, typename D=CFreeDeleter> struct C
     }
 
     // size
-    SizeType size() { return m_count; }
-    const SizeType size() const { return m_count; }
+    [[nodiscard]] SizeType size() { return m_count; }
+    [[nodiscard]] const SizeType size() const { return m_count; }
 
     // element access
-    Reference operator[](SizeType n) { return m_data[n]; }
-    ConstReference operator[](SizeType n) const { return m_data[n]; }
-    std::optional<Reference> at(SizeType n) {
+    [[nodiscard]] Reference operator[](SizeType n) { return m_data[n]; }
+    [[nodiscard]] ConstReference operator[](SizeType n) const { return m_data[n]; }
+    [[nodiscard]] std::optional<Reference> at(SizeType n) {
         if (n < m_count)
             return m_data[n]; 
         return std::nullopt;
     }
-    Reference front() { return m_data[0]; }
-    ConstReference front() const { return m_data[0]; }
-    Reference back() { return m_data[m_count - 1]; }
-    ConstReference back() const { return m_count[m_count - 1]; }
+    [[nodiscard]] Reference front() { return m_data[0]; }
+    [[nodiscard]] ConstReference front() const { return m_data[0]; }
+    [[nodiscard]] Reference back() { return m_data[m_count - 1]; }
+    [[nodiscard]] ConstReference back() const { return m_count[m_count - 1]; }
 
 
 
-    Pointer data() { return m_data; }
-    ConstPointer data() const { return m_data; }
+    [[nodiscard]] Pointer data() { return m_data; }
+    [[nodiscard]] ConstPointer data() const { return m_data; }
 
 private:
     [[no_unique_address]] D m_deleter; //deleter
