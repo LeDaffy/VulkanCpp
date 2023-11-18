@@ -8,6 +8,7 @@
 
 // #define GLFW_INCLUDE_VULKAN
 // #include <GLFW/glfw3.h>
+#include <keycode.hxx>
 
 import window;
 import types;
@@ -25,7 +26,9 @@ auto main() -> i32
 
     while (!xwindow.should_close()) {
         xwindow.poll_events();
-
+        if (xwindow.keys.is_pressed(KeyCode::space)) {
+            std::cout << "Pressed space" << std::endl;
+        }
 
     }
 
