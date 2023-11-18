@@ -21,8 +21,7 @@ auto main() -> i32
                        .with_dimensions(1280, 720)
                        .with_position(1280/2, 720/2)
                        .build();
-    // std::cout << window << std::endl;;
-    vke::Instance vkeinst;
+    //vke::Instance vkeinst;
 
     while (!xwindow.should_close()) {
         xwindow.poll_events();
@@ -33,32 +32,23 @@ auto main() -> i32
             std::cout << "q pressed" << std::endl;
             break;
         }
+        if (xwindow.keys.is_pressed(KeyCode::a)) {
+            std::cout << "a pressed" << std::endl;
+        }
+        if (xwindow.keys.is_pressed(KeyCode::s)) {
+            std::cout << "s pressed" << std::endl;
+        }
+        if (xwindow.keys.is_pressed(KeyCode::d)) {
+            std::cout << "d pressed" << std::endl;
+        }
+        if (xwindow.keys.is_pressed(KeyCode::f)) {
+            std::cout << "f pressed" << std::endl;
+        }
+        if (xwindow.keys.is_held(KeyCode::w)) {
+            std::cout << "w held" << std::endl;
+        }
 
     }
-
-    // glfwInit();
-    // glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    // glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-    // auto window = glfwCreateWindow(800, 600, "Vulkan", nullptr, nullptr);
-
-    // uint32_t glfwExtensionCount = 0;
-    // const char** glfwExtensions;
-
-    // glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-    // for (int i = 0; i < glfwExtensionCount; i++) {
-    //     std::cout << glfwExtensions[i] << std::endl;
-    // }
-
-    // while (!glfwWindowShouldClose(window)) {
-    //     glfwPollEvents();
-    // }
-
-    // std::cout << "Hello world\n" << std::endl;
-    // //sleep(3);
-
-    // glfwDestroyWindow(window);
-
-    // glfwTerminate();
     return 0;
 }
 
