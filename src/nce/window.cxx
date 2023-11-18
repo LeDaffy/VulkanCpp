@@ -78,7 +78,7 @@ struct KeyMap {
             return false;
         }
         auto val = keys[code].pressed;
-        bool ret_val = val.prev && !val.curr;
+        bool ret_val = val.curr && !val.prev;
         if (ret_val) { // consume the key press
             keys[code].pressed.push(false);
         }
@@ -149,16 +149,16 @@ namespace window {
 
             event_queue.push(std::move(x_event));
             if (!event_queue.curr) return;
-            std::cout << "Event Sequence numbers [" << event_queue.curr->sequence << ", " << event_queue.next->sequence << "]" << std::endl;
+            //std::cout << "Event Sequence numbers [" << event_queue.curr->sequence << ", " << event_queue.next->sequence << "]" << std::endl;
 
 
-            switch (event_queue.curr->response_type & ~0x80) {
+            switch (event_queue.next->response_type & ~0x80) {
                 case XCB_KEY_PRESS: {
-                    [[maybe_unused]] NonOwningPtr<xcb_key_press_event_t> event = reinterpret_cast<xcb_key_press_event_t*>(event_queue.curr.get());
+                    [[maybe_unused]] NonOwningPtr<xcb_key_press_event_t> event = reinterpret_cast<xcb_key_press_event_t*>(event_queue.next.get());
                     xkb_keysym_t keysym = xkb_state_key_get_one_sym(kb_state.get(), event->detail);
                     xkb_state_update_key(kb_state.get(), event->detail, XKB_KEY_DOWN);
 
-                    std::cout << "Down Sequence numbers [" << event->sequence << "]" << std::endl;
+                    // std::cout << "Down Sequence numbers [" << event->sequence << "]" << std::endl;
                     keys.keys[static_cast<KeyCode>(keysym)].pressed.push(true);
                     keys.keys[static_cast<KeyCode>(keysym)].key_down = true;
 #if 0
@@ -169,20 +169,21 @@ namespace window {
 #endif
                     break;
                 } case XCB_KEY_RELEASE: {
-                    [[maybe_unused]] NonOwningPtr<xcb_key_release_event_t> event = reinterpret_cast<xcb_key_release_event_t*>(event_queue.curr.get());
+                    [[maybe_unused]] NonOwningPtr<xcb_key_release_event_t> event = reinterpret_cast<xcb_key_release_event_t*>(event_queue.next.get());
                     xkb_keysym_t keysym = xkb_state_key_get_one_sym(kb_state.get(), event->detail);
                     xkb_state_update_key(kb_state.get(), event->detail, XKB_KEY_UP);
 
-                    std::cout << "Up Sequence numbers [" << event->sequence << "]" << std::endl;
+                    // std::cout << "Up Sequence numbers [" << event->sequence << "]" << std::endl;
+                    keys.keys[static_cast<KeyCode>(keysym)].pressed.push(false);
                     keys.keys[static_cast<KeyCode>(keysym)].key_down = false;
                     break;
                 } case XCB_BUTTON_PRESS: {
-                    std::cout << "XCB_BUTTON_PRESS" << std::endl;
-                    [[maybe_unused]] NonOwningPtr<xcb_button_press_event_t> event = reinterpret_cast<xcb_button_press_event_t*>(event_queue.curr.get());
+                    // std::cout << "XCB_BUTTON_PRESS" << std::endl;
+                    [[maybe_unused]] NonOwningPtr<xcb_button_press_event_t> event = reinterpret_cast<xcb_button_press_event_t*>(event_queue.next.get());
                     break;
                 } case XCB_BUTTON_RELEASE: {
-                    std::cout << "XCB_BUTTON_RELEASE" << std::endl;
-                    [[maybe_unused]] NonOwningPtr<xcb_button_release_event_t> event = reinterpret_cast<xcb_button_release_event_t*>(event_queue.curr.get());
+                    // std::cout << "XCB_BUTTON_RELEASE" << std::endl;
+                    [[maybe_unused]] NonOwningPtr<xcb_button_release_event_t> event = reinterpret_cast<xcb_button_release_event_t*>(event_queue.next.get());
                     break;
                 }
             }
