@@ -21,7 +21,7 @@ auto main() -> i32
                        .with_dimensions(1280, 720)
                        .with_position(1280/2, 720/2)
                        .build();
-    //vke::Instance vkeinst;
+    vke::Instance vkeinst;
 
     while (!xwindow.should_close()) {
         xwindow.poll_events();
@@ -44,8 +44,12 @@ auto main() -> i32
         if (xwindow.keys.is_pressed(KeyCode::f)) {
             std::cout << "f pressed" << std::endl;
         }
-        if (xwindow.keys.is_held(KeyCode::w)) {
+        if (xwindow.keys.is_down(KeyCode::w)) {
             std::cout << "w held" << std::endl;
+        }
+        if (xwindow.keys.is_down(KeyCode::Control_L) && xwindow.keys.is_pressed(KeyCode::c)) {
+            std::cout << "Ctrl-c pressed" << std::endl;
+            break;
         }
 
     }

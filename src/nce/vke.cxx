@@ -1,30 +1,35 @@
 module;
 #include <array> 
-#include <expected>
-#include <tuple>
-#include <memory>
-#include <cstdlib>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <expected>
 #include <iostream>
+#include <memory>
+#include <tuple>
 
-#include <X11/X.h>
-#include <X11/Xlib.h>
-#include <X11/Xos.h>
-#include <X11/Xutil.h>
-#include <X11/Xlibint.h>
+#include <xcb/xcb.h>
+#include <xcb/xproto.h>
+#include <xcb/xcb_keysyms.h>
 
 #include <vulkan/vulkan.h>
-#include <vulkan/vulkan_xlib.h>
+#include <vulkan/vulkan_xcb.h>
 
 #include <vke_macro.hxx>
 
 #include <log.hxx>
 
-
 import types;
 import carray;
 import log;
+#ifdef DEBUG
+constexpr bool use_validation_layers = true;
+#else
+constexpr bool use_validation_layers = false;
+#endif
+
 export module vke;
+
 
 namespace vke {
     export auto init() -> void {}
@@ -114,13 +119,15 @@ namespace vke {
         
     };
 
-    export class Instance {
-        public:
-        VkInstance instance;
+    struct VKEInstanceDeleter {
+        void operator()(VkInstance_T* ptr){ vkDestroyInstance(ptr, nullptr); }
+    };
+    export struct Instance {
+        std::unique_ptr<VkInstance_T, VKEInstanceDeleter> instance;
         VkApplicationInfo info_app;
         VkInstanceCreateInfo info_create;
 
-        constexpr static std::array<CString, 2> extensions = {"VK_KHR_surface", "VK_KHR_xlib_surface"};
+        constexpr static std::array<CString, 2> extensions = {"VK_KHR_surface", "VK_KHR_xcb_surface"};
 
         Instance() : 
             instance(nullptr),
@@ -137,7 +144,7 @@ namespace vke {
                     VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, // VkStructureType sType;
                     nullptr,                                // const void* pNext;
                     0,                                      // VkInstanceCreateFlags flags;
-                    &(info_app),                      // const VkApplicationInfo* pApplicationInfo;
+                    &(info_app),                            // const VkApplicationInfo* pApplicationInfo;
                     0,                                      // uint32_t enabledLayerCount;
                     nullptr,                                // const char* const* ppEnabledLayerNames;
                     extensions.size(),                      // uint32_t enabledExtensionCount;
@@ -146,18 +153,49 @@ namespace vke {
         {
             CArray<VkExtensionProperties, u32> extensions_available = available_extensions();
 
+#if 0
             for (auto const& e : extensions_available) {
                 LOGINFO(e.extensionName);
             }
+#endif
+            constexpr std::array<CString, 1> validation_layers = { "VK_LAYER_KHRONOS_validation" };
+            if (use_validation_layers && !check_validation_layer_support(validation_layers)) {
+                LOGERROR("Validation layer not supported");
+                std::abort();
+            }
+            if (use_validation_layers) {
+                info_create.enabledLayerCount = static_cast<uint32_t>(validation_layers.size());
+                info_create.ppEnabledLayerNames = validation_layers.data();
+                vke::Result result = vkCreateInstance(&info_create, nullptr, reinterpret_cast<VkInstance*>(&instance));
+                VKE_RESULT_CRASH(result);
+            } else {
+                vke::Result result = vkCreateInstance(&info_create, nullptr, reinterpret_cast<VkInstance*>(&instance));
+                VKE_RESULT_CRASH(result);
+            }
 
-            Result result = vkCreateInstance(&info_create, nullptr, &instance);
-            VKE_RESULT_CRASH(result);
 
-            auto validation_layers = available_validation_layers();
+
+        }
+        bool check_validation_layer_support(std::array<CString, 1> layers) {
+            auto layers_available = available_validation_layers();
+            for (auto layer_name : layers) {
+                bool layer_found = false;
+                for (auto layer_available : layers_available) {
+                std::cout << "Layer_name: " <<  layer_available.layerName << std::endl;
+                    if (strcmp(layer_name, layer_available.layerName) == 0) {
+                        layer_found = true;
+                        break;
+                    }
+                }
+                if (!layer_found) {
+                    return false;
+                }
+            }
+            return true;
         }
         CArray<VkLayerProperties, u32> available_validation_layers() {
             u32 layer_count = 0;
-            Result result = vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
+            vke::Result result = vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
             VKE_RESULT_CRASH(result);
             CArray<VkLayerProperties, u32> layers_available(layer_count);
             result = vkEnumerateInstanceLayerProperties(&layer_count, layers_available.data());
@@ -166,7 +204,7 @@ namespace vke {
         }
         CArray<VkExtensionProperties, u32> available_extensions() {
             u32 extension_count = 0;
-            Result result = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
+            vke::Result result = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
             VKE_RESULT_CRASH(result);
             CArray<VkExtensionProperties, u32, CFreeDeleter> extensions_available(extension_count);
             result = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, extensions_available.data());

@@ -84,7 +84,7 @@ struct KeyMap {
         }
         return ret_val;
     }
-    bool is_held(KeyCode code) {
+    bool is_down(KeyCode code) {
         if (keys.find(code) == keys.end()) {
             return false;
         }
@@ -182,7 +182,6 @@ namespace window {
                         NonOwningPtr<xcb_key_press_event_t> event_prev = reinterpret_cast<xcb_key_press_event_t*>(event_queue.curr.get());
                         if (event->time != event_prev->time) {
                             keys.keys[static_cast<KeyCode>(keysym)].key_down = false;
-                            std::cout << "Key held down up" << std::endl;
                         }
                     }
 #if 0

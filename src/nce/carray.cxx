@@ -7,12 +7,11 @@ export module carray;
 
 export {
 
-class CFreeDeleter {
-    public:
+struct CFreeDeleter {
     void operator()(void* ptr){ std::free(ptr); }
 };
 /*!
- * @brief CArray: Templated class used to wrap a C-style array from a pointer and a length
+ * @brief CArray: Templated struct used to wrap a C-style array from a pointer and a length
  * Example:
  * ```
  * CArray<i32, i32> depths([display, screen_id]() -> std::tuple<i32*, i32> {
@@ -22,8 +21,7 @@ class CFreeDeleter {
  *     }, XFree);
  * ```
  */
-template<typename T, typename SizeType=size_t, typename D=CFreeDeleter> class CArray {
-    public:
+template<typename T, typename SizeType=size_t, typename D=CFreeDeleter> struct CArray {
     using ValueType = T;
     using DeleterType = D;
     using AllocatorType = std::allocator<T>;
