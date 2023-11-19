@@ -168,6 +168,7 @@ struct Instance {
     VkPhysicalDevice physical_device;
     std::unique_ptr<VkDevice_T, VKEDeviceDeleter> logical_device;
     VkQueue graphics_queue;
+    VkQueue present_queue;
 
 
 
