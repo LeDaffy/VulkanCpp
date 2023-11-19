@@ -1,19 +1,41 @@
-add_library(cm)
-target_compile_definitions(cm
-    PRIVATE
-    $<$<CONFIG:Debug>:DEBUG>
-    )
+add_library(nce)
+# target_compile_definitions(nce
+#     PRIVATE
+#     $<$<CONFIG:Debug>:DEBUG>
+#     )
 
-target_sources(cm
+target_sources(nce
     PRIVATE
     window.cxx
     vke.cxx
     )
-target_include_directories(cm PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(nce PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-target_link_libraries(cm PUBLIC 
+target_link_libraries(nce PUBLIC 
     X11::xcb 
     X11::xcb_keysyms
     X11::xkbcommon
     X11::xkbcommon_X11
+    )
+target_precompile_headers(nce
+    PUBLIC
+    <algorithm>
+    <any>
+    <array>
+    <bitset>
+    <cstddef>
+    <cstdint>
+    <cstdio>
+    <format>
+    <functional>
+    <iostream>
+    <memory>
+    <optional>
+    <ranges>
+    <string>
+    <string_view>
+    <tuple>
+    <unistd.h>
+    <unordered_map>
+    <vector>
     )

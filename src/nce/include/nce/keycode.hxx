@@ -1,5 +1,4 @@
 #pragma once
-#include <cstdint>
 enum class KeyStates : uint8_t {
     pressed,
     released

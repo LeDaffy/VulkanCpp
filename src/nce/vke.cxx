@@ -75,23 +75,21 @@ namespace vke {
             std::cout << "Selected Vulkan device: " << device_properties.deviceName << std::endl;
 
         }
-    QueueFamilyIndices Instance::find_queue_families(VkPhysicalDevice device) {
+    auto Instance::find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices {
         QueueFamilyIndices indices;
         u32 queue_family_count = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nullptr);
         CArray<VkQueueFamilyProperties, u32> queue_families(queue_family_count);
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
-        int i = 0;
-        //for (const auto [index, queue_family] : queue_families | std::views::enumerate) {
-        //    if (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-        //        indices.graphics_family = i;
-        //    }
-        //    i++;
-        //}
+        for (const auto [index, queue_family] : std::views::enumerate(queue_families) ) {
+            if (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+                indices.graphics_family = index;
+            }
+        }
 
         return {};
     }
-    u32 Instance::rate_device(VkPhysicalDevice device) {
+    auto Instance::rate_device(VkPhysicalDevice device) -> u32 {
         VkPhysicalDeviceProperties device_properties;
         vkGetPhysicalDeviceProperties(device, &device_properties);
         VkPhysicalDeviceFeatures device_features;
@@ -108,7 +106,7 @@ namespace vke {
 
         return score;
     }
-    bool Instance::is_physical_device_suitable(VkPhysicalDevice device) {
+    auto Instance::is_physical_device_suitable(VkPhysicalDevice device) -> bool {
         VkPhysicalDeviceProperties device_properties;
         vkGetPhysicalDeviceProperties(device, &device_properties);
         VkPhysicalDeviceFeatures device_features;
@@ -118,7 +116,7 @@ namespace vke {
         return true;
     }
 
-    bool Instance::check_validation_layer_support(std::array<CString, 1> layers) {
+    auto Instance::check_validation_layer_support(std::array<CString, 1> layers) -> bool {
         auto layers_available = available_validation_layers();
         for (auto layer_name : layers) {
             bool layer_found = false;
@@ -135,7 +133,7 @@ namespace vke {
         }
         return true;
     }
-    [[nodiscard]] CArray<VkPhysicalDevice, u32> Instance::available_physical_devices() {
+    auto Instance::available_physical_devices() -> CArray<VkPhysicalDevice, u32> {
         u32 device_count;
         vke::Result result = vkEnumeratePhysicalDevices(instance.get(), &device_count, nullptr);
         VKE_RESULT_CRASH(result);
@@ -148,7 +146,7 @@ namespace vke {
         VKE_RESULT_CRASH(result);
         return devices_available;
     }
-    [[nodiscard]] CArray<VkLayerProperties, u32> Instance::available_validation_layers() {
+    auto Instance::available_validation_layers() -> CArray<VkLayerProperties, u32> {
         u32 layer_count = 0;
         vke::Result result = vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
         VKE_RESULT_CRASH(result);
@@ -157,7 +155,7 @@ namespace vke {
         VKE_RESULT_CRASH(result);
         return layers_available;
     }
-    [[nodiscard]] CArray<VkExtensionProperties, u32> Instance::available_extensions() {
+    auto Instance::available_extensions() -> CArray<VkExtensionProperties, u32> {
         u32 extension_count = 0;
         vke::Result result = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
         VKE_RESULT_CRASH(result);

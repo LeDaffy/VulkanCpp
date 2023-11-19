@@ -106,6 +106,7 @@ struct Result {
             //case VK_PIPELINE_COMPILE_REQUIRED: return "VK_ERROR_PIPELINE_COMPILE_REQUIRED_EXT"; break;
             case VK_RESULT_MAX_ENUM: return "VK_RESULT_MAX_ENUM"; break;
         }
+        return "Not Implemented";
     }
     friend std::ostream &operator<<(std::ostream &os, Result& r) { 
         return os << static_cast<CString>(r); 
@@ -130,13 +131,13 @@ struct Instance {
 
     Instance();
 
-    QueueFamilyIndices find_queue_families(VkPhysicalDevice device);
-    u32 rate_device(VkPhysicalDevice device);
-    bool is_physical_device_suitable(VkPhysicalDevice device);
-    bool check_validation_layer_support(std::array<CString, 1> layers);
-    [[nodiscard]] CArray<VkPhysicalDevice, u32> available_physical_devices();
-    [[nodiscard]] CArray<VkLayerProperties, u32> available_validation_layers();
-    [[nodiscard]] CArray<VkExtensionProperties, u32> available_extensions();
+    auto find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices;
+    auto rate_device(VkPhysicalDevice device) -> u32;
+    auto is_physical_device_suitable(VkPhysicalDevice device) -> bool;
+    auto check_validation_layer_support(std::array<CString, 1> layers) -> bool;
+    [[nodiscard]] auto available_physical_devices() -> CArray<VkPhysicalDevice, u32>;
+    [[nodiscard]] auto available_validation_layers() -> CArray<VkLayerProperties, u32>;
+    [[nodiscard]] auto available_extensions() -> CArray<VkExtensionProperties, u32>;
 };
 
 }

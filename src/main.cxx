@@ -1,11 +1,3 @@
-#include <cstdio>
-#include <iostream>
-#include <tuple>
-#include <vector>
-#include <cassert>   // I include this to test return values the lazy way
-#include <unistd.h>   // So we got the profile for 10 seconds
-#include <ranges>
-
 #include <nce/keycode.hxx>
 
 #include <nce/window.hxx>
@@ -14,14 +6,6 @@
 
 auto main() -> i32
 {
-    auto even = [](int i) { return 0 == i % 2; };
-    auto square = [](int i) { return i * i; };
-
-    for (int i : std::views::iota(0, 6)
-            | std::views::filter(even)
-            | std::views::transform(square))
-        std::cout << i << ' ';
-    std::cout << '\n';
     auto xwindow = window::WindowBuilder()
         .with_name("NCAD 3D")
         .with_dimensions(1280, 720)
@@ -29,9 +13,6 @@ auto main() -> i32
         .build();
     vke::Instance vkeinst;
 
-    for (int i : std::views::iota(1, 10))
-        std::cout << i << ' ';
-    std::cout << '\n';
     while (!xwindow.should_close()) {
         xwindow.poll_events();
         if (xwindow.keys.is_pressed(KeyCode::space)) {

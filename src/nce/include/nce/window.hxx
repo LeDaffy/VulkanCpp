@@ -1,19 +1,3 @@
-#include <string_view>
-#include <iostream>
-#include <string>
-#include <format>
-#include <string_view>
-#include <cstddef>
-#include <vector>
-#include <algorithm>
-#include <optional>
-#include <cstdio>
-#include <functional>
-#include <memory>
-#include <unordered_map>
-#include <array>
-#include <bitset>
-
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
 #include <xcb/xcb_keysyms.h>
@@ -26,8 +10,6 @@
 
 #include <nce/log.hxx>
 #include <nce/keycode.hxx>
-
-
 
 #include <nce/types.hxx>
 #include <nce/carray.hxx>
