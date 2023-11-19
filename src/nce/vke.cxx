@@ -4,74 +4,53 @@
 
 
 namespace vke {
-    Instance::Instance(const window::Window& window) : 
-            instance(nullptr),
-            info_app({
-                    VK_STRUCTURE_TYPE_APPLICATION_INFO, // VkStructureType    sType;
-                    nullptr,                            // const void* pNext;
-                    "NCAD 3D",                          // const char* pApplicationName;
-                    VK_MAKE_VERSION(1, 0, 0),           // uint32_t applicationVersion;
-                    nullptr,                            // const char* pEngineName;
-                    VK_MAKE_VERSION(1, 0, 0),           // uint32_t engineVersion;
-                    VK_API_VERSION_1_3                  // uint32_t apiVersion;
-                    }),
-            info_create({
-                    VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, // VkStructureType sType;
-                    nullptr,                                // const void* pNext;
-                    0,                                      // VkInstanceCreateFlags flags;
-                    &(info_app),                            // const VkApplicationInfo* pApplicationInfo;
-                    0,                                      // uint32_t enabledLayerCount;
-                    nullptr,                                // const char* const* ppEnabledLayerNames;
-                    extensions.size(),                      // uint32_t enabledExtensionCount;
-                    extensions.data()                       // const char* const* ppEnabledExtensionNames;
-                    }),
-            physical_device(VK_NULL_HANDLE)
-        {
-            CArray<VkExtensionProperties, u32> extensions_available = available_extensions();
+    void Instance::create_instance() {
+        CArray<VkExtensionProperties, u32> extensions_available = available_extensions();
 
 #if 0
-            for (auto const& e : extensions_available) {
-                LOGINFO(e.extensionName);
-            }
+        for (auto const& e : extensions_available) {
+            LOGINFO(e.extensionName);
+        }
 #endif
-            if (use_validation_layers && !check_validation_layer_support(validation_layers)) {
-                LOGERROR("Validation layer not supported");
-                std::abort();
-            }
+        if (use_validation_layers && !check_validation_layer_support(validation_layers)) {
+            LOGERROR("Validation layer not supported");
+            std::abort();
+        }
 
-            // create vulkan instance
-            if (use_validation_layers) {
-                info_create.enabledLayerCount = static_cast<uint32_t>(validation_layers.size());
-                info_create.ppEnabledLayerNames = validation_layers.data();
-                vke::Result result = vkCreateInstance(&info_create, nullptr, reinterpret_cast<VkInstance*>(&instance));
-                VKE_RESULT_CRASH(result);
-            } else {
-                vke::Result result = vkCreateInstance(&info_create, nullptr, reinterpret_cast<VkInstance*>(&instance));
-                VKE_RESULT_CRASH(result);
-            }
-
-            // create window surface
-            VkXcbSurfaceCreateInfoKHR surface_create_info = {
-                // VkStructureType               sType;
-                // const void*                   pNext;
-                // VkXcbSurfaceCreateFlagsKHR    flags;
-                // xcb_connection_t*             connection;
-                // xcb_window_t                  window;
-            };
-            surface_create_info.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
-            surface_create_info.connection = window.x_connection.get();
-            surface_create_info.window = window.x_window;
-
-            VkSurfaceKHR l_instance = nullptr;
-            vke::Result result = vkCreateXcbSurfaceKHR(instance.get(), &surface_create_info, nullptr, &l_instance);
+        // create vulkan instance
+        if (use_validation_layers) {
+            info_create.enabledLayerCount = static_cast<uint32_t>(validation_layers.size());
+            info_create.ppEnabledLayerNames = validation_layers.data();
+            vke::Result result = vkCreateInstance(&info_create, nullptr, reinterpret_cast<VkInstance*>(&instance));
             VKE_RESULT_CRASH(result);
-            if (l_instance == nullptr) {
-                std::abort();
-            }
-            surface = std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter>(l_instance);
-            surface.get_deleter().instance = instance.get();
+        } else {
+            vke::Result result = vkCreateInstance(&info_create, nullptr, reinterpret_cast<VkInstance*>(&instance));
+            VKE_RESULT_CRASH(result);
+        }
+    }
+    void Instance::create_surface(const window::Window& window) {
+        // create window surface
+        VkXcbSurfaceCreateInfoKHR surface_create_info = {
+            // VkStructureType               sType;
+            // const void*                   pNext;
+            // VkXcbSurfaceCreateFlagsKHR    flags;
+            // xcb_connection_t*             connection;
+            // xcb_window_t                  window;
+        };
+        surface_create_info.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+        surface_create_info.connection = window.x_connection.get();
+        surface_create_info.window = window.x_window;
 
-
+        VkSurfaceKHR l_instance = nullptr;
+        vke::Result result = vkCreateXcbSurfaceKHR(instance.get(), &surface_create_info, nullptr, &l_instance);
+        VKE_RESULT_CRASH(result);
+        if (l_instance == nullptr) {
+            std::abort();
+        }
+        surface = std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter>(l_instance);
+        surface.get_deleter().instance = instance.get();
+    }
+    void Instance::pick_physical_device() {
             auto devices = available_physical_devices();
             // Use an ordered map to automatically sort candidates by increasing score
             std::multimap<int, VkPhysicalDevice> candidates;
@@ -98,6 +77,35 @@ namespace vke {
             vkGetPhysicalDeviceFeatures(physical_device, &device_features);
             std::cout << "Selected Vulkan device: " << device_properties.deviceName << std::endl;
 
+    }
+    Instance::Instance(const window::Window& window) : 
+            instance(nullptr),
+            surface(nullptr),
+            info_app({
+                    VK_STRUCTURE_TYPE_APPLICATION_INFO, // VkStructureType    sType;
+                    nullptr,                            // const void* pNext;
+                    "NCAD 3D",                          // const char* pApplicationName;
+                    VK_MAKE_VERSION(1, 0, 0),           // uint32_t applicationVersion;
+                    nullptr,                            // const char* pEngineName;
+                    VK_MAKE_VERSION(1, 0, 0),           // uint32_t engineVersion;
+                    VK_API_VERSION_1_3                  // uint32_t apiVersion;
+                    }),
+            info_create({
+                    VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, // VkStructureType sType;
+                    nullptr,                                // const void* pNext;
+                    0,                                      // VkInstanceCreateFlags flags;
+                    &(info_app),                            // const VkApplicationInfo* pApplicationInfo;
+                    0,                                      // uint32_t enabledLayerCount;
+                    nullptr,                                // const char* const* ppEnabledLayerNames;
+                    extensions.size(),                      // uint32_t enabledExtensionCount;
+                    extensions.data()                       // const char* const* ppEnabledExtensionNames;
+                    }),
+            physical_device(VK_NULL_HANDLE)
+        {
+            create_instance();
+            create_surface(window);
+            pick_physical_device();
+            create_logical_device();
         }
 
     void Instance::create_logical_device() {
@@ -162,12 +170,18 @@ namespace vke {
         CArray<VkQueueFamilyProperties, u32> queue_families(queue_family_count);
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
 
+        VkBool32 present_support = 0;
         for (const auto [index, queue_family] : std::views::enumerate(queue_families) ) {
             if (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 indices.graphics_family = index;
             }
+            vkGetPhysicalDeviceSurfaceSupportKHR(device, index, surface.get(), &present_support);
+            if (present_support) {
+                indices.present_family = index;
+            }
             if (indices.has_value()) { return indices; }
         }
+
 
         return indices;
     }

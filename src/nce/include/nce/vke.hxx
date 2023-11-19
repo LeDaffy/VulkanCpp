@@ -124,7 +124,7 @@ struct Result {
  */
 struct VKEInstanceDeleter { 
     void operator()(VkInstance_T* ptr){ 
-        std::cout << "VKEInstanceDeleter: " << ptr << std::endl;
+        //std::cout << "VKEInstanceDeleter: " << ptr << std::endl;
         vkDestroyInstance(ptr, nullptr); 
     } };
 
@@ -140,14 +140,15 @@ struct VKESurfaceDeleter {
     VkInstance_T* instance;
     VKESurfaceDeleter() : instance(0) {}
     void operator()(VkSurfaceKHR_T* ptr){ 
-        std::cout << termcolor::red << "VKESurfaceDeleter: " << ptr << std::endl;
+        //std::cout << termcolor::red << "VKESurfaceDeleter: " << ptr << std::endl;
         vkDestroySurfaceKHR(instance, ptr, nullptr); 
     } 
 };
 struct QueueFamilyIndices {
     std::optional<u32> graphics_family;
-    auto has_value() -> bool { return graphics_family.has_value(); }
-    auto has_value() const -> const bool { return graphics_family.has_value(); }
+    std::optional<u32> present_family;
+    auto has_value() -> bool { return graphics_family.has_value() && present_family.has_value(); }
+    auto has_value() const -> const bool { return graphics_family.has_value() && present_family.has_value(); }
 };
 
 
@@ -157,6 +158,7 @@ struct QueueFamilyIndices {
 struct Instance {
     //members
     std::unique_ptr<VkInstance_T, VKEInstanceDeleter> instance; ///< Vulkan Instance
+    std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter> surface;
     VkApplicationInfo info_app; ///< Properties of the vulkan application
     VkInstanceCreateInfo info_create; ///< Vulkan Instance creation parameters
 
@@ -166,7 +168,6 @@ struct Instance {
     VkPhysicalDevice physical_device;
     std::unique_ptr<VkDevice_T, VKEDeviceDeleter> logical_device;
     VkQueue graphics_queue;
-    std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter> surface;
 
 
 
@@ -174,8 +175,11 @@ struct Instance {
     /// @brief Creates an Instance.
     /// Itializes Vulkan, selects a physical devices
     Instance(const window::Window& window);
-
+    void create_instance();
+    void create_surface(const window::Window& window);
+    void pick_physical_device();
     void create_logical_device();
+
     [[nodiscard]] auto find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices;
     /// @brief Rate GPUs based on needed features
     auto rate_device(VkPhysicalDevice device) -> u32;

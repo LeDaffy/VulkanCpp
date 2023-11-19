@@ -28,6 +28,7 @@ target_precompile_headers(nce
     <memory>
     <optional>
     <ranges>
+    <set>
     <string>
     <string_view>
     <tuple>
