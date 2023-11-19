@@ -4,7 +4,7 @@
 
 
 namespace vke {
-    Instance::Instance() : 
+    Instance::Instance(const window::Window& window) : 
             instance(nullptr),
             info_app({
                     VK_STRUCTURE_TYPE_APPLICATION_INFO, // VkStructureType    sType;
@@ -38,6 +38,8 @@ namespace vke {
                 LOGERROR("Validation layer not supported");
                 std::abort();
             }
+
+            // create vulkan instance
             if (use_validation_layers) {
                 info_create.enabledLayerCount = static_cast<uint32_t>(validation_layers.size());
                 info_create.ppEnabledLayerNames = validation_layers.data();
@@ -47,6 +49,28 @@ namespace vke {
                 vke::Result result = vkCreateInstance(&info_create, nullptr, reinterpret_cast<VkInstance*>(&instance));
                 VKE_RESULT_CRASH(result);
             }
+
+            // create window surface
+            VkXcbSurfaceCreateInfoKHR surface_create_info = {
+                // VkStructureType               sType;
+                // const void*                   pNext;
+                // VkXcbSurfaceCreateFlagsKHR    flags;
+                // xcb_connection_t*             connection;
+                // xcb_window_t                  window;
+            };
+            surface_create_info.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+            surface_create_info.connection = window.x_connection.get();
+            surface_create_info.window = window.x_window;
+
+            VkSurfaceKHR l_instance = nullptr;
+            vke::Result result = vkCreateXcbSurfaceKHR(instance.get(), &surface_create_info, nullptr, &l_instance);
+            VKE_RESULT_CRASH(result);
+            if (l_instance == nullptr) {
+                std::abort();
+            }
+            surface = std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter>(l_instance);
+            surface.get_deleter().instance = instance.get();
+
 
             auto devices = available_physical_devices();
             // Use an ordered map to automatically sort candidates by increasing score

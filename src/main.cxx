@@ -11,7 +11,7 @@ auto main() -> i32
         .with_dimensions(1280, 720)
         .with_position(1280/2, 720/2)
         .build();
-    vke::Instance vkeinst;
+    vke::Instance vkeinst(xwindow);
 
     while (!xwindow.should_close()) {
         xwindow.poll_events();

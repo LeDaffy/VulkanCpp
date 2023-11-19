@@ -23,6 +23,7 @@
 #include <nce/types.hxx>
 #include <nce/carray.hxx>
 #include <nce/log.hxx>
+#include <nce/window.hxx>
 
 namespace vke {
 #ifndef NDEBUG
@@ -121,18 +122,34 @@ struct Result {
 /**
  *  @brief Deleter for VKInstace (aka VkInstance_T*).
  */
-struct VKEInstanceDeleter { void operator()(VkInstance_T* ptr){ vkDestroyInstance(ptr, nullptr); } };
+struct VKEInstanceDeleter { 
+    void operator()(VkInstance_T* ptr){ 
+        std::cout << "VKEInstanceDeleter: " << ptr << std::endl;
+        vkDestroyInstance(ptr, nullptr); 
+    } };
 
 /**
  *  @brief Deleter for VKDevice
  */
 struct VKEDeviceDeleter { void operator()(VkDevice_T* ptr){ vkDestroyDevice(ptr, nullptr); } };
 
+/**
+ *  @brief Deleter for VKSurface
+ */
+struct VKESurfaceDeleter {
+    VkInstance_T* instance;
+    VKESurfaceDeleter() : instance(0) {}
+    void operator()(VkSurfaceKHR_T* ptr){ 
+        std::cout << termcolor::red << "VKESurfaceDeleter: " << ptr << std::endl;
+        vkDestroySurfaceKHR(instance, ptr, nullptr); 
+    } 
+};
 struct QueueFamilyIndices {
     std::optional<u32> graphics_family;
     auto has_value() -> bool { return graphics_family.has_value(); }
     auto has_value() const -> const bool { return graphics_family.has_value(); }
 };
+
 
 /**
  *  @brief Container that initializes and holds a vulkan instance.
@@ -149,12 +166,14 @@ struct Instance {
     VkPhysicalDevice physical_device;
     std::unique_ptr<VkDevice_T, VKEDeviceDeleter> logical_device;
     VkQueue graphics_queue;
+    std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter> surface;
+
 
 
 
     /// @brief Creates an Instance.
     /// Itializes Vulkan, selects a physical devices
-    Instance();
+    Instance(const window::Window& window);
 
     void create_logical_device();
     [[nodiscard]] auto find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices;

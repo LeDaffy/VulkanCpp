@@ -1,3 +1,4 @@
+#pragma once
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
 #include <xcb/xcb_keysyms.h>
