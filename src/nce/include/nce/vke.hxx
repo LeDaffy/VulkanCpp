@@ -25,11 +25,15 @@
 #include <nce/log.hxx>
 
 namespace vke {
-#ifdef DEBUG
+#ifndef NDEBUG
 constexpr bool use_validation_layers = true;
 #else
 constexpr bool use_validation_layers = false;
 #endif
+/**
+ *  @brief A container storing a VkResult.
+ *  vke::Result provides functionality to print the error type from VkResult.
+ */
 struct Result {
     VkResult result;
 
@@ -37,12 +41,12 @@ struct Result {
     ~Result() = default;
 
     Result(VkResult& r) : result(r) {}
-    Result(VkResult&& r) : result(r) {}
+    Result(VkResult&& r) : result(std::move(r)) {}
     void operator=(VkResult& r) { result = r; }
-    void operator=(VkResult&& r) { result = r; }
+    void operator=(VkResult&& r) { result = std::move(r); }
 
     bool operator==(VkResult& r) { return result == r; }
-    bool operator==(VkResult&& r) { return result == r; }
+    bool operator==(VkResult&& r) { return result == std::move(r); }
 
 
     operator CString() const {
@@ -113,33 +117,56 @@ struct Result {
     }
 };
 
-struct VKEInstanceDeleter {
-    void operator()(VkInstance_T* ptr){ vkDestroyInstance(ptr, nullptr); }
-};
+
+/**
+ *  @brief Deleter for VKInstace (aka VkInstance_T*).
+ */
+struct VKEInstanceDeleter { void operator()(VkInstance_T* ptr){ vkDestroyInstance(ptr, nullptr); } };
+
+/**
+ *  @brief Deleter for VKDevice
+ */
+struct VKEDeviceDeleter { void operator()(VkDevice_T* ptr){ vkDestroyDevice(ptr, nullptr); } };
 
 struct QueueFamilyIndices {
     std::optional<u32> graphics_family;
-
     auto has_value() -> bool { return graphics_family.has_value(); }
     auto has_value() const -> const bool { return graphics_family.has_value(); }
 };
-struct Instance {
-    std::unique_ptr<VkInstance_T, VKEInstanceDeleter> instance;
-    VkApplicationInfo info_app;
-    VkInstanceCreateInfo info_create;
 
+/**
+ *  @brief Container that initializes and holds a vulkan instance.
+ */
+struct Instance {
+    //members
+    std::unique_ptr<VkInstance_T, VKEInstanceDeleter> instance; ///< Vulkan Instance
+    VkApplicationInfo info_app; ///< Properties of the vulkan application
+    VkInstanceCreateInfo info_create; ///< Vulkan Instance creation parameters
+
+    /// @brief Required extensions for drawing with vulkan
+    constexpr static std::array<CString, 1> validation_layers = { "VK_LAYER_KHRONOS_validation" };
     constexpr static std::array<CString, 2> extensions = {"VK_KHR_surface", "VK_KHR_xcb_surface"};
     VkPhysicalDevice physical_device;
+    std::unique_ptr<VkDevice_T, VKEDeviceDeleter> logical_device;
+    VkQueue graphics_queue;
 
 
+
+    /// @brief Creates an Instance.
+    /// Itializes Vulkan, selects a physical devices
     Instance();
 
-    auto find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices;
+    void create_logical_device();
+    [[nodiscard]] auto find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices;
+    /// @brief Rate GPUs based on needed features
     auto rate_device(VkPhysicalDevice device) -> u32;
-    auto is_physical_device_suitable(VkPhysicalDevice device) -> bool;
-    auto check_validation_layer_support(std::array<CString, 1> layers) -> bool;
+    [[nodiscard]] auto is_physical_device_suitable(VkPhysicalDevice device) -> bool;
+    [[nodiscard]] auto check_validation_layer_support(std::array<CString, 1> layers) -> bool;
+    /// @brief Query vulkan for the avaiable GPUs
     [[nodiscard]] auto available_physical_devices() -> CArray<VkPhysicalDevice, u32>;
+    /// @brief Query vulkan for the avaiable validation layers
     [[nodiscard]] auto available_validation_layers() -> CArray<VkLayerProperties, u32>;
+    /// @brief Query vulkan for the avaiable extensions
     [[nodiscard]] auto available_extensions() -> CArray<VkExtensionProperties, u32>;
 };
 

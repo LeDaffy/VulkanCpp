@@ -13,7 +13,6 @@
 
 #include <nce/types.hxx>
 #include <nce/carray.hxx>
-#include <nce/move_only_ptr.hxx>
 #include <nce/non_owning_ptr.hxx>
 #include <nce/log.hxx>
 

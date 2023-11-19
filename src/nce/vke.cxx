@@ -1,3 +1,4 @@
+#include "nce/vke_macro.hxx"
 #include <nce/vke.hxx>
 
 
@@ -33,7 +34,6 @@ namespace vke {
                 LOGINFO(e.extensionName);
             }
 #endif
-            constexpr std::array<CString, 1> validation_layers = { "VK_LAYER_KHRONOS_validation" };
             if (use_validation_layers && !check_validation_layer_support(validation_layers)) {
                 LOGERROR("Validation layer not supported");
                 std::abort();
@@ -75,6 +75,61 @@ namespace vke {
             std::cout << "Selected Vulkan device: " << device_properties.deviceName << std::endl;
 
         }
+
+    void Instance::create_logical_device() {
+        // Specifying the queues to be created
+        QueueFamilyIndices indices = find_queue_families(physical_device);
+        VkDeviceQueueCreateInfo queue_create_info = {
+            // VkStructureType             sType;
+            // const void*                 pNext;
+            // VkDeviceQueueCreateFlags    flags;
+            // uint32_t                    queueFamilyIndex;
+            // uint32_t                    queueCount;
+            // const float*                pQueuePriorities;
+        };
+        queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queue_create_info.queueFamilyIndex = indices.graphics_family.value();
+        queue_create_info.queueCount = 1;
+        const float queue_priority = 1.0f;
+        queue_create_info.pQueuePriorities = &queue_priority;
+
+        // Specifying used device features
+        VkPhysicalDeviceFeatures device_features = {};
+
+        // Creating the logical device
+        VkDeviceCreateInfo create_info = {
+            // VkStructureType                    sType;
+            // const void*                        pNext;
+            // VkDeviceCreateFlags                flags;
+            // uint32_t                           queueCreateInfoCount;
+            // const VkDeviceQueueCreateInfo*     pQueueCreateInfos;
+            // uint32_t                           enabledLayerCount;
+            // const char* const*                 ppEnabledLayerNames;
+            // uint32_t                           enabledExtensionCount;
+            // const char* const*                 ppEnabledExtensionNames;
+            // const VkPhysicalDeviceFeatures*    pEnabledFeatures;
+        };
+        create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+        create_info.pQueueCreateInfos = &queue_create_info;
+        create_info.queueCreateInfoCount = 1;
+        create_info.pEnabledFeatures = &device_features;
+
+        create_info.enabledExtensionCount = 0;
+
+        if (enable_validation_layers) {
+            create_info.enabledLayerCount = static_cast<u32>(validation_layers.size());
+            create_info.ppEnabledLayerNames = validation_layers.data();
+        } else {
+            create_info.enabledLayerCount = 0;
+        }
+
+
+        //create logical device
+        vke::Result result = vkCreateDevice(physical_device, &create_info, nullptr, reinterpret_cast<VkDevice*>(&logical_device));
+        VKE_RESULT_CRASH(result)
+
+        vkGetDeviceQueue(logical_device.get(), indices.graphics_family.value(), 0, &graphics_queue);
+    }
     auto Instance::find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices {
         QueueFamilyIndices indices;
 
