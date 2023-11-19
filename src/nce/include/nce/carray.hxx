@@ -1,11 +1,7 @@
-module;
-
+#pragma once
 #include <optional>
 #include <functional>
 
-export module carray;
-
-export {
 
 struct CFreeDeleter {
     void operator()(void* ptr){ std::free(ptr); }
@@ -113,4 +109,4 @@ private:
     T* m_data; // data
     SizeType m_count; // number of members
 };
-}
+

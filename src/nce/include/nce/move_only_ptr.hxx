@@ -1,9 +1,6 @@
-module;
+#pragma once
 #include <iostream>
 
-export module move_only_ptr;
-
-export {
 template<typename T, typename D> class MoveOnlyPtr {
     public:
     using ValueType = T;
@@ -53,4 +50,3 @@ template<typename T, typename D> class MoveOnlyPtr {
     Pointer m_data;
 
 };
-}

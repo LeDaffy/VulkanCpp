@@ -5,11 +5,12 @@
 #include <cassert>   // I include this to test return values the lazy way
 #include <unistd.h>   // So we got the profile for 10 seconds
 #include <ranges>
-#include <keycode.hxx>
 
-import window;
-import types;
-import vke;
+#include <nce/keycode.hxx>
+
+#include <nce/window.hxx>
+#include <nce/types.hxx>
+#include <nce/vke.hxx>
 
 auto main() -> i32
 {
@@ -59,7 +60,7 @@ auto main() -> i32
         //     std::cout << "Ctrl-c pressed" << std::endl;
         //     break;
         // }
-        if (xwindow.keys.is_down(KeyCode::Control_L) && xwindow.keys.is_down(KeyCode::Alt_L) && xwindow.keys.is_pressed(KeyCode::C)) {
+        if (xwindow.keys.is_down(KeyCode::Control_L) && xwindow.keys.is_down(KeyCode::Alt_L) && xwindow.keys.is_down(KeyCode::Shift_L) && (xwindow.keys.is_pressed(KeyCode::C) || xwindow.keys.is_pressed(KeyCode::c))) {
             std::cout << "Ctrl + Alt + Shift + C" << std::endl;
         }
 

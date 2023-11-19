@@ -1,10 +1,7 @@
-module;
 #include <iostream>
 
 
-export module non_owning_ptr;
 
-export {
 /**
  * @brief Pointer that does not own any memory nor requires any cleanup
  */
@@ -59,4 +56,3 @@ template<typename T> class NonOwningPtr {
     Pointer m_data;
 
 };
-}

@@ -1,9 +1,13 @@
-module;
+#pragma once
+
 #include <iostream>
 #include <cstdio>
 
-import types;
-export module log;
+#include <nce/types.hxx>
+#define LOGWARN(msg) log_warning((msg), __FILE__, __func__, __LINE__)
+#define LOGERROR(msg) log_error((msg), __FILE__, __func__, __LINE__)
+#define LOGINFO(msg) log_info((msg))
+#define LOGHEADER(msg) log_info((msg))
 
 
 namespace termcolor {
@@ -42,7 +46,6 @@ constexpr CString bright_cyan_bg = "\x1B[106m";
 constexpr CString bright_white = "\x1B[97m";
 constexpr CString bright_white_bg = "\x1B[107m";
 }
-export {
 template<typename T>
 void log_warning(T msg, CString file, CString function, size_t line) {
     std::cout << termcolor::bright_white << file << " (" << function << ":" << line << ")" << termcolor::bold << termcolor::magenta << " Warning: " << termcolor::reset << msg << std::endl;
@@ -54,5 +57,4 @@ void log_error(T msg, CString file, CString function, size_t line) {
 template<typename T>
 void log_info(T msg) {
     std::cout << termcolor::bright_white << termcolor::bold << "Info: " << termcolor::reset << msg << std::endl;
-}
 }
