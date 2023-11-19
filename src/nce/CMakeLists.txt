@@ -1,8 +1,4 @@
 add_library(nce)
-# target_compile_definitions(nce
-#     PRIVATE
-#     $<$<CONFIG:Debug>:DEBUG>
-#     )
 
 target_sources(nce
     PRIVATE

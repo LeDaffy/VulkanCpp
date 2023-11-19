@@ -3,11 +3,8 @@ cmake_minimum_required(VERSION 3.28)
 # clang 17 and greater can avoid this setting
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD 23)
-# set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -stdlib=libc++ -lc++abi")
-# set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -stdlib=libc++ -lc++experimental")
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++ -Wall")
-add_compile_options (-fdiagnostics-color=always)
-#add_compile_options (-fcolor-diagnostics -fexperimental-library)
+
+add_compile_options(-fdiagnostics-color=always)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 

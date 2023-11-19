@@ -119,6 +119,9 @@ struct VKEInstanceDeleter {
 
 struct QueueFamilyIndices {
     std::optional<u32> graphics_family;
+
+    auto has_value() -> bool { return graphics_family.has_value(); }
+    auto has_value() const -> const bool { return graphics_family.has_value(); }
 };
 struct Instance {
     std::unique_ptr<VkInstance_T, VKEInstanceDeleter> instance;

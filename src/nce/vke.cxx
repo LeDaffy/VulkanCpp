@@ -77,17 +77,20 @@ namespace vke {
         }
     auto Instance::find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices {
         QueueFamilyIndices indices;
+
         u32 queue_family_count = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nullptr);
         CArray<VkQueueFamilyProperties, u32> queue_families(queue_family_count);
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
+
         for (const auto [index, queue_family] : std::views::enumerate(queue_families) ) {
             if (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 indices.graphics_family = index;
             }
+            if (indices.has_value()) { return indices; }
         }
 
-        return {};
+        return indices;
     }
     auto Instance::rate_device(VkPhysicalDevice device) -> u32 {
         VkPhysicalDeviceProperties device_properties;
@@ -107,13 +110,15 @@ namespace vke {
         return score;
     }
     auto Instance::is_physical_device_suitable(VkPhysicalDevice device) -> bool {
+        QueueFamilyIndices indices = find_queue_families(device);
+
         VkPhysicalDeviceProperties device_properties;
         vkGetPhysicalDeviceProperties(device, &device_properties);
         VkPhysicalDeviceFeatures device_features;
         vkGetPhysicalDeviceFeatures(device, &device_features);
         std::cout << device_properties.deviceName << '\n';
 
-        return true;
+        return indices.has_value();
     }
 
     auto Instance::check_validation_layer_support(std::array<CString, 1> layers) -> bool {
