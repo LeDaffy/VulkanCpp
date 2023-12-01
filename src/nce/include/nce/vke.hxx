@@ -31,6 +31,7 @@ constexpr bool use_validation_layers = true;
 #else
 constexpr bool use_validation_layers = false;
 #endif
+
 /**
  *  @brief A container storing a VkResult.
  *  vke::Result provides functionality to print the error type from VkResult.
@@ -164,7 +165,8 @@ struct Instance {
 
     /// @brief Required extensions for drawing with vulkan
     constexpr static std::array<CString, 1> validation_layers = { "VK_LAYER_KHRONOS_validation" };
-    constexpr static std::array<CString, 2> extensions = {"VK_KHR_surface", "VK_KHR_xcb_surface"};
+    constexpr static std::array<CString, 2> extensions = { "VK_KHR_surface", "VK_KHR_xcb_surface" };
+    constexpr static std::array<CString, 1> device_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
     VkPhysicalDevice physical_device;
     std::unique_ptr<VkDevice_T, VKEDeviceDeleter> logical_device;
     VkQueue graphics_queue;

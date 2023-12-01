@@ -13,13 +13,8 @@ project(cgm)
 
 find_package(X11 REQUIRED)
 find_package(Vulkan REQUIRED)
-find_package(glfw3 REQUIRED)
 add_executable(ncad)
 
 add_subdirectory(src)
 
-target_link_libraries(ncad PUBLIC nce Vulkan::Vulkan glfw)
-install(FILES
-    ${CMAKE_SOURCE_DIR}/build/compile_commands.json
-    DESTINATION ${CMAKE_SOURCE_DIR}
-    )
+target_link_libraries(ncad PUBLIC nce Vulkan::Vulkan)
