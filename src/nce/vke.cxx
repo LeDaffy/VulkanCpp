@@ -12,19 +12,19 @@ namespace vke {
             LOGINFO(e.extensionName);
         }
 #endif
-        if (use_validation_layers && !check_validation_layer_support(validation_layers)) {
+        if (use_validation_layers && !check_validation_layer_support(this->validation_layers)) {
             LOGERROR("Validation layer not supported");
             std::abort();
         }
 
         // create vulkan instance
         if (use_validation_layers) {
-            info_create.enabledLayerCount = static_cast<uint32_t>(validation_layers.size());
-            info_create.ppEnabledLayerNames = validation_layers.data();
-            vke::Result result = vkCreateInstance(&info_create, nullptr, reinterpret_cast<VkInstance*>(&instance));
+            this->info_create.enabledLayerCount = static_cast<uint32_t>(this->validation_layers.size());
+            this->info_create.ppEnabledLayerNames = this->validation_layers.data();
+            vke::Result result = vkCreateInstance(&this->info_create, nullptr, reinterpret_cast<VkInstance*>(&this->instance));
             VKE_RESULT_CRASH(result);
         } else {
-            vke::Result result = vkCreateInstance(&info_create, nullptr, reinterpret_cast<VkInstance*>(&instance));
+            vke::Result result = vkCreateInstance(&this->info_create, nullptr, reinterpret_cast<VkInstance*>(&this->instance));
             VKE_RESULT_CRASH(result);
         }
     }
@@ -42,13 +42,13 @@ namespace vke {
         surface_create_info.window = window.x_window;
 
         VkSurfaceKHR l_instance = nullptr;
-        vke::Result result = vkCreateXcbSurfaceKHR(instance.get(), &surface_create_info, nullptr, &l_instance);
+        vke::Result result = vkCreateXcbSurfaceKHR(this->instance.get(), &surface_create_info, nullptr, &l_instance);
         VKE_RESULT_CRASH(result);
         if (l_instance == nullptr) {
             std::abort();
         }
-        surface = std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter>(l_instance);
-        surface.get_deleter().instance = instance.get();
+        this->surface = std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter>(l_instance);
+        this->surface.get_deleter().instance = this->instance.get();
     }
     void Instance::pick_physical_device() {
         auto devices = available_physical_devices();
@@ -63,20 +63,20 @@ namespace vke {
 
         // Check if the best candidate is suitable at all
         if (candidates.rbegin()->first > 0) {
-            physical_device = candidates.rbegin()->second;
+            this->physical_device = candidates.rbegin()->second;
         } else {
             LOGERROR("GPU Not Supported");
             std::abort();
         }
-        if (physical_device == VK_NULL_HANDLE) {
+        if (this->physical_device == VK_NULL_HANDLE) {
             LOGERROR("GPU Not Supported");
             std::abort();
         }
 
         VkPhysicalDeviceProperties device_properties;
-        vkGetPhysicalDeviceProperties(physical_device, &device_properties);
+        vkGetPhysicalDeviceProperties(this->physical_device, &device_properties);
         VkPhysicalDeviceFeatures device_features;
-        vkGetPhysicalDeviceFeatures(physical_device, &device_features);
+        vkGetPhysicalDeviceFeatures(this->physical_device, &device_features);
         std::cout << "Selected Vulkan device: " << device_properties.deviceName << std::endl;
 
     }
@@ -96,11 +96,11 @@ namespace vke {
                 VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, // VkStructureType sType;
                 nullptr,                                // const void* pNext;
                 0,                                      // VkInstanceCreateFlags flags;
-                &(info_app),                            // const VkApplicationInfo* pApplicationInfo;
+                &(this->info_app),                            // const VkApplicationInfo* pApplicationInfo;
                 0,                                      // uint32_t enabledLayerCount;
                 nullptr,                                // const char* const* ppEnabledLayerNames;
-                extensions.size(),                      // uint32_t enabledExtensionCount;
-                extensions.data()                       // const char* const* ppEnabledExtensionNames;
+                this->extensions.size(),                      // uint32_t enabledExtensionCount;
+                this->extensions.data()                       // const char* const* ppEnabledExtensionNames;
                 }),
         physical_device(VK_NULL_HANDLE)
         {
@@ -112,7 +112,7 @@ namespace vke {
 
     void Instance::create_logical_device() {
         // Specifying the queues to be created
-        QueueFamilyIndices indices = find_queue_families(physical_device);
+        QueueFamilyIndices indices = find_queue_families(this->physical_device);
 
         std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
         std::set<u32> unique_queue_families = {indices.graphics_family.value(), indices.present_family.value()};
@@ -155,24 +155,24 @@ namespace vke {
         create_info.queueCreateInfoCount = static_cast<u32>(queue_create_infos.size());
         create_info.pEnabledFeatures = &device_features;
 
-        create_info.enabledExtensionCount = static_cast<u32>(device_extensions.size());
-        create_info.ppEnabledExtensionNames = device_extensions.data();
+        create_info.enabledExtensionCount = static_cast<u32>(this->device_extensions.size());
+        create_info.ppEnabledExtensionNames = this->device_extensions.data();
 
         if (enable_validation_layers) {
-            create_info.enabledLayerCount = static_cast<u32>(validation_layers.size());
-            create_info.ppEnabledLayerNames = validation_layers.data();
+            create_info.enabledLayerCount = static_cast<u32>(this->validation_layers.size());
+            create_info.ppEnabledLayerNames = this->validation_layers.data();
         } else {
             create_info.enabledLayerCount = 0;
         }
 
 
         //create logical device
-        vke::Result result = vkCreateDevice(physical_device, &create_info, nullptr, reinterpret_cast<VkDevice*>(&logical_device));
+        vke::Result result = vkCreateDevice(this->physical_device, &create_info, nullptr, reinterpret_cast<VkDevice*>(&this->logical_device));
         VKE_RESULT_CRASH(result)
 
-            vkGetDeviceQueue(logical_device.get(), indices.graphics_family.value(), 0, &graphics_queue);
-        vkGetDeviceQueue(logical_device.get(), indices.present_family.value(), 0, &present_queue);
-        //std::cout << "Queues: " << graphics_queue << ", " << present_queue << std::endl;
+            vkGetDeviceQueue(this->logical_device.get(), indices.graphics_family.value(), 0, &this->graphics_queue);
+        vkGetDeviceQueue(this->logical_device.get(), indices.present_family.value(), 0, &this->present_queue);
+        //std::cout << "Queues: " << this->graphics_queue << ", " << this->present_queue << std::endl;
     }
     auto Instance::find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices {
         QueueFamilyIndices indices;
@@ -187,7 +187,7 @@ namespace vke {
             if (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 indices.graphics_family = index;
             }
-            vkGetPhysicalDeviceSurfaceSupportKHR(device, index, surface.get(), &present_support);
+            vkGetPhysicalDeviceSurfaceSupportKHR(device, index, this->surface.get(), &present_support);
             if (present_support) {
                 indices.present_family = index;
             }
@@ -234,7 +234,7 @@ namespace vke {
         CArray<VkExtensionProperties> available_extensions(extension_count);
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, available_extensions.data());
 
-        std::set<std::string> requiredExtensions(device_extensions.begin(), device_extensions.end());
+        std::set<std::string> requiredExtensions(this->device_extensions.begin(), this->device_extensions.end());
 
         for (const auto& extension : available_extensions) {
             requiredExtensions.erase(extension.extensionName);
@@ -262,14 +262,14 @@ namespace vke {
     }
     auto Instance::available_physical_devices() const -> CArray<VkPhysicalDevice, u32> {
         u32 device_count;
-        vke::Result result = vkEnumeratePhysicalDevices(instance.get(), &device_count, nullptr);
+        vke::Result result = vkEnumeratePhysicalDevices(this->instance.get(), &device_count, nullptr);
         VKE_RESULT_CRASH(result);
         if (device_count == 0) {
             LOGERROR("Vulkan not supported on this device");
             std::abort();
         }
         CArray<VkPhysicalDevice, u32> devices_available(device_count);
-        result = vkEnumeratePhysicalDevices(instance.get(), &device_count, devices_available.data());
+        result = vkEnumeratePhysicalDevices(this->instance.get(), &device_count, devices_available.data());
         VKE_RESULT_CRASH(result);
         return devices_available;
     }
