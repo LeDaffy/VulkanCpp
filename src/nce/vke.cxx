@@ -51,56 +51,58 @@ namespace vke {
         surface.get_deleter().instance = instance.get();
     }
     void Instance::pick_physical_device() {
-            auto devices = available_physical_devices();
-            // Use an ordered map to automatically sort candidates by increasing score
-            std::multimap<int, VkPhysicalDevice> candidates;
-            for (auto d : devices) {
-                u32 score = rate_device(d);
+        auto devices = available_physical_devices();
+        // Use an ordered map to automatically sort candidates by increasing score
+        std::multimap<int, VkPhysicalDevice> candidates;
+        for (auto d : devices) {
+            u32 score = rate_device(d);
+            if (is_physical_device_suitable(d)) {
                 candidates.insert(std::make_pair(score, d));
             }
+        }
 
-             // Check if the best candidate is suitable at all
-            if (candidates.rbegin()->first > 0) {
-                physical_device = candidates.rbegin()->second;
-            } else {
-                LOGERROR("GPU Not Supported");
-                std::abort();
-            }
-            if (physical_device == VK_NULL_HANDLE) {
-                LOGERROR("GPU Not Supported");
-                std::abort();
-            }
+        // Check if the best candidate is suitable at all
+        if (candidates.rbegin()->first > 0) {
+            physical_device = candidates.rbegin()->second;
+        } else {
+            LOGERROR("GPU Not Supported");
+            std::abort();
+        }
+        if (physical_device == VK_NULL_HANDLE) {
+            LOGERROR("GPU Not Supported");
+            std::abort();
+        }
 
-            VkPhysicalDeviceProperties device_properties;
-            vkGetPhysicalDeviceProperties(physical_device, &device_properties);
-            VkPhysicalDeviceFeatures device_features;
-            vkGetPhysicalDeviceFeatures(physical_device, &device_features);
-            std::cout << "Selected Vulkan device: " << device_properties.deviceName << std::endl;
+        VkPhysicalDeviceProperties device_properties;
+        vkGetPhysicalDeviceProperties(physical_device, &device_properties);
+        VkPhysicalDeviceFeatures device_features;
+        vkGetPhysicalDeviceFeatures(physical_device, &device_features);
+        std::cout << "Selected Vulkan device: " << device_properties.deviceName << std::endl;
 
     }
     Instance::Instance(const window::Window& window) : 
-            instance(nullptr),
-            surface(nullptr),
-            info_app({
-                    VK_STRUCTURE_TYPE_APPLICATION_INFO, // VkStructureType    sType;
-                    nullptr,                            // const void* pNext;
-                    "NCAD 3D",                          // const char* pApplicationName;
-                    VK_MAKE_VERSION(1, 0, 0),           // uint32_t applicationVersion;
-                    nullptr,                            // const char* pEngineName;
-                    VK_MAKE_VERSION(1, 0, 0),           // uint32_t engineVersion;
-                    VK_API_VERSION_1_3                  // uint32_t apiVersion;
-                    }),
-            info_create({
-                    VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, // VkStructureType sType;
-                    nullptr,                                // const void* pNext;
-                    0,                                      // VkInstanceCreateFlags flags;
-                    &(info_app),                            // const VkApplicationInfo* pApplicationInfo;
-                    0,                                      // uint32_t enabledLayerCount;
-                    nullptr,                                // const char* const* ppEnabledLayerNames;
-                    extensions.size(),                      // uint32_t enabledExtensionCount;
-                    extensions.data()                       // const char* const* ppEnabledExtensionNames;
-                    }),
-            physical_device(VK_NULL_HANDLE)
+        instance(nullptr),
+        surface(nullptr),
+        info_app({
+                VK_STRUCTURE_TYPE_APPLICATION_INFO, // VkStructureType    sType;
+                nullptr,                            // const void* pNext;
+                "NCAD 3D",                          // const char* pApplicationName;
+                VK_MAKE_VERSION(1, 0, 0),           // uint32_t applicationVersion;
+                nullptr,                            // const char* pEngineName;
+                VK_MAKE_VERSION(1, 0, 0),           // uint32_t engineVersion;
+                VK_API_VERSION_1_3                  // uint32_t apiVersion;
+                }),
+        info_create({
+                VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, // VkStructureType sType;
+                nullptr,                                // const void* pNext;
+                0,                                      // VkInstanceCreateFlags flags;
+                &(info_app),                            // const VkApplicationInfo* pApplicationInfo;
+                0,                                      // uint32_t enabledLayerCount;
+                nullptr,                                // const char* const* ppEnabledLayerNames;
+                extensions.size(),                      // uint32_t enabledExtensionCount;
+                extensions.data()                       // const char* const* ppEnabledExtensionNames;
+                }),
+        physical_device(VK_NULL_HANDLE)
         {
             create_instance();
             create_surface(window);
@@ -111,7 +113,7 @@ namespace vke {
     void Instance::create_logical_device() {
         // Specifying the queues to be created
         QueueFamilyIndices indices = find_queue_families(physical_device);
-        
+
         std::vector<VkDeviceQueueCreateInfo> queue_create_infos;
         std::set<u32> unique_queue_families = {indices.graphics_family.value(), indices.present_family.value()};
 
@@ -167,7 +169,7 @@ namespace vke {
         vke::Result result = vkCreateDevice(physical_device, &create_info, nullptr, reinterpret_cast<VkDevice*>(&logical_device));
         VKE_RESULT_CRASH(result)
 
-        vkGetDeviceQueue(logical_device.get(), indices.graphics_family.value(), 0, &graphics_queue);
+            vkGetDeviceQueue(logical_device.get(), indices.graphics_family.value(), 0, &graphics_queue);
         vkGetDeviceQueue(logical_device.get(), indices.present_family.value(), 0, &present_queue);
         //std::cout << "Queues: " << graphics_queue << ", " << present_queue << std::endl;
     }
@@ -220,7 +222,24 @@ namespace vke {
         vkGetPhysicalDeviceFeatures(device, &device_features);
         std::cout << device_properties.deviceName << '\n';
 
-        return indices.has_value();
+        bool extensions_supported = check_device_extension_support(device);
+
+        return indices.has_value() && extensions_supported;
+    }
+    auto Instance::check_device_extension_support(VkPhysicalDevice device) const -> bool {
+        u32 extension_count;
+        vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, nullptr);
+
+        CArray<VkExtensionProperties> available_extensions(extension_count);
+        vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, available_extensions.data());
+
+        std::set<std::string> requiredExtensions(device_extensions.begin(), device_extensions.end());
+
+        for (const auto& extension : available_extensions) {
+            requiredExtensions.erase(extension.extensionName);
+        }
+
+        return requiredExtensions.empty();
     }
 
     auto Instance::check_validation_layer_support(std::array<CString, 1> layers) -> bool {
@@ -240,7 +259,7 @@ namespace vke {
         }
         return true;
     }
-    auto Instance::available_physical_devices() -> CArray<VkPhysicalDevice, u32> {
+    auto Instance::available_physical_devices() const -> CArray<VkPhysicalDevice, u32> {
         u32 device_count;
         vke::Result result = vkEnumeratePhysicalDevices(instance.get(), &device_count, nullptr);
         VKE_RESULT_CRASH(result);
@@ -253,7 +272,7 @@ namespace vke {
         VKE_RESULT_CRASH(result);
         return devices_available;
     }
-    auto Instance::available_validation_layers() -> CArray<VkLayerProperties, u32> {
+    auto Instance::available_validation_layers() const -> CArray<VkLayerProperties, u32> {
         u32 layer_count = 0;
         vke::Result result = vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
         VKE_RESULT_CRASH(result);
@@ -262,7 +281,7 @@ namespace vke {
         VKE_RESULT_CRASH(result);
         return layers_available;
     }
-    auto Instance::available_extensions() -> CArray<VkExtensionProperties, u32> {
+    auto Instance::available_extensions() const -> CArray<VkExtensionProperties, u32> {
         u32 extension_count = 0;
         vke::Result result = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
         VKE_RESULT_CRASH(result);

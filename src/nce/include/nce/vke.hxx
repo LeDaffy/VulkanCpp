@@ -183,17 +183,18 @@ struct Instance {
     void pick_physical_device();
     void create_logical_device();
 
+    [[nodiscard]] auto check_device_extension_support(VkPhysicalDevice device) const -> bool;
     [[nodiscard]] auto find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices;
     /// @brief Rate GPUs based on needed features
     auto rate_device(VkPhysicalDevice device) -> u32;
     [[nodiscard]] auto is_physical_device_suitable(VkPhysicalDevice device) -> bool;
     [[nodiscard]] auto check_validation_layer_support(std::array<CString, 1> layers) -> bool;
     /// @brief Query vulkan for the avaiable GPUs
-    [[nodiscard]] auto available_physical_devices() -> CArray<VkPhysicalDevice, u32>;
+    [[nodiscard]] auto available_physical_devices() const -> CArray<VkPhysicalDevice, u32>;
     /// @brief Query vulkan for the avaiable validation layers
-    [[nodiscard]] auto available_validation_layers() -> CArray<VkLayerProperties, u32>;
+    [[nodiscard]] auto available_validation_layers() const -> CArray<VkLayerProperties, u32>;
     /// @brief Query vulkan for the avaiable extensions
-    [[nodiscard]] auto available_extensions() -> CArray<VkExtensionProperties, u32>;
+    [[nodiscard]] auto available_extensions() const -> CArray<VkExtensionProperties, u32>;
 };
 
 }
