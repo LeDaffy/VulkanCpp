@@ -155,7 +155,8 @@ namespace vke {
         create_info.queueCreateInfoCount = static_cast<u32>(queue_create_infos.size());
         create_info.pEnabledFeatures = &device_features;
 
-        create_info.enabledExtensionCount = 0;
+        create_info.enabledExtensionCount = static_cast<u32>(device_extensions.size());
+        create_info.ppEnabledExtensionNames = device_extensions.data();
 
         if (enable_validation_layers) {
             create_info.enabledLayerCount = static_cast<u32>(validation_layers.size());
