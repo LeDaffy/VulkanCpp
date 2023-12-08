@@ -20,6 +20,9 @@ namespace vke {
     VkPhysicalDevice Instance::physical_device = nullptr;
     std::unique_ptr<VkDevice_T, VKEDeviceDeleter> Instance::logical_device = nullptr;
 
+    void Instance::create_graphics_pipeline() {
+
+    }
     void Instance::create_swapchain() {
         SwapChainSupportDetails swapchain_support = query_swapchain_support(this->physical_device, this->surface.get());
         VkSurfaceFormatKHR surface_format = choose_swap_surface_format(swapchain_support.formats);

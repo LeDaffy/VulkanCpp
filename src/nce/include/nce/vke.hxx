@@ -177,6 +177,7 @@ struct Instance {
     void create_logical_device();
     void create_swapchain();
     void create_image_views();
+    void create_graphics_pipeline();
 
     [[nodiscard]] auto check_device_extension_support(VkPhysicalDevice device) const -> bool;
     [[nodiscard]] auto find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices;

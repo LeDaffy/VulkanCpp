@@ -14,6 +14,9 @@ project(cgm)
 find_package(X11 REQUIRED)
 find_package(Vulkan REQUIRED)
 add_executable(ncad)
+add_custom_command(TARGET ncad 
+                   POST_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:ncad> ${CMAKE_BINARY_DIR})
 
 add_subdirectory(src)
 

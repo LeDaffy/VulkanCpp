@@ -20,7 +20,6 @@ auto main() -> i32
         xwindow.poll_events();
         if (xwindow.keys.is_pressed(KeyCode::space)) {
             fmt::println("Pressed space");
-            break;
         }
         if (xwindow.keys.is_pressed(KeyCode::q)) {
             fmt::println("q pressed");
