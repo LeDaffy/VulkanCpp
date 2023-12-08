@@ -17,4 +17,4 @@ add_executable(ncad)
 
 add_subdirectory(src)
 
-target_link_libraries(ncad PUBLIC nce Vulkan::Vulkan)
+target_link_libraries(ncad nce Vulkan::Vulkan fmt)

@@ -1,4 +1,6 @@
+#include <fmt/core.h>
 #include <nce/keycode.hxx>
+#include <fmt/format.h>
 
 #include <nce/window.hxx>
 #include <nce/types.hxx>
@@ -6,8 +8,9 @@
 
 auto main() -> i32
 {
+    fmt::println("Hello world!");
     auto xwindow = window::WindowBuilder()
-        .with_name("NCAD 3D")
+        .with_name("NCAD 3DX")
         .with_dimensions(1280, 720)
         .with_position(1280/2, 720/2)
         .build();
@@ -16,33 +19,34 @@ auto main() -> i32
     while (!xwindow.should_close()) {
         xwindow.poll_events();
         if (xwindow.keys.is_pressed(KeyCode::space)) {
-            std::cout << "Pressed space" << std::endl;
+            fmt::println("Pressed space");
+            break;
         }
         if (xwindow.keys.is_pressed(KeyCode::q)) {
-            std::cout << "q pressed" << std::endl;
+            fmt::println("q pressed");
             break;
         }
         if (xwindow.keys.is_pressed(KeyCode::a)) {
-            std::cout << "a pressed" << std::endl;
+            fmt::println("a pressed");
         }
         if (xwindow.keys.is_pressed(KeyCode::s)) {
-            std::cout << "s pressed" << std::endl;
+            fmt::println("s pressed");
         }
         if (xwindow.keys.is_pressed(KeyCode::d)) {
-            std::cout << "d pressed" << std::endl;
+            fmt::println("d pressed");
         }
         if (xwindow.keys.is_pressed(KeyCode::f)) {
-            std::cout << "f pressed" << std::endl;
+            fmt::println("f pressed");
         }
         if (xwindow.keys.is_down(KeyCode::w)) {
-            std::cout << "w held" << std::endl;
+            fmt::println("w held");
         }
         // if (xwindow.keys.is_down(KeyCode::Control_L) && xwindow.keys.is_pressed(KeyCode::c)) {
-        //     std::cout << "Ctrl-c pressed" << std::endl;
+        //     fmt::println("Ctrl-c pressed");
         //     break;
         // }
         if (xwindow.keys.is_down(KeyCode::Control_L) && xwindow.keys.is_down(KeyCode::Alt_L) && xwindow.keys.is_down(KeyCode::Shift_L) && (xwindow.keys.is_pressed(KeyCode::C) || xwindow.keys.is_pressed(KeyCode::c))) {
-            std::cout << "Ctrl + Alt + Shift + C" << std::endl;
+            fmt::println("Ctrl + Alt + Shift + C");
         }
 
     }

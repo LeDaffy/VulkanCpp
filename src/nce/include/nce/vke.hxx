@@ -10,6 +10,7 @@
 #include <map>
 
 
+#include <vulkan/vulkan_core.h>
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
 #include <xcb/xcb_keysyms.h>
@@ -125,7 +126,6 @@ struct Result {
  */
 struct VKEInstanceDeleter { 
     void operator()(VkInstance_T* ptr){ 
-        //std::cout << "VKEInstanceDeleter: " << ptr << std::endl;
         vkDestroyInstance(ptr, nullptr); 
     } };
 
@@ -134,14 +134,20 @@ struct VKEInstanceDeleter {
  */
 struct VKEDeviceDeleter { void operator()(VkDevice_T* ptr){ vkDestroyDevice(ptr, nullptr); } };
 
+
+struct VKESwapChainDeleter {
+    VkDevice_T* logical_device;
+    VKESwapChainDeleter() : logical_device(nullptr) {}
+    void operator()(VkSwapchainKHR_T* ptr){ vkDestroySwapchainKHR(logical_device, ptr, nullptr); } 
+};
+
 /**
  *  @brief Deleter for VKSurface
  */
 struct VKESurfaceDeleter {
     VkInstance_T* instance;
-    VKESurfaceDeleter() : instance(0) {}
+    VKESurfaceDeleter() : instance(nullptr) {}
     void operator()(VkSurfaceKHR_T* ptr){ 
-        //std::cout << termcolor::red << "VKESurfaceDeleter: " << ptr << std::endl;
         vkDestroySurfaceKHR(instance, ptr, nullptr); 
     } 
 };
@@ -152,25 +158,34 @@ struct QueueFamilyIndices {
     auto has_value() const -> const bool { return graphics_family.has_value() && present_family.has_value(); }
 };
 
+struct SwapChainSupportDetails {
+    VkSurfaceCapabilitiesKHR capabilities;
+    std::vector<VkSurfaceFormatKHR> formats;
+    std::vector<VkPresentModeKHR> present_modes;
+};
 
 /**
  *  @brief Container that initializes and holds a vulkan instance.
  */
 struct Instance {
-    //members
-    std::unique_ptr<VkInstance_T, VKEInstanceDeleter> instance; ///< Vulkan Instance
-    std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter> surface;
-    VkApplicationInfo info_app; ///< Properties of the vulkan application
-    VkInstanceCreateInfo info_create; ///< Vulkan Instance creation parameters
-
     /// @brief Required extensions for drawing with vulkan
     constexpr static std::array<CString, 1> validation_layers = { "VK_LAYER_KHRONOS_validation" };
     constexpr static std::array<CString, 2> extensions = { "VK_KHR_surface", "VK_KHR_xcb_surface" };
     constexpr static std::array<CString, 1> device_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+
+    //members
+    VkApplicationInfo info_app; ///< Properties of the vulkan application
+    VkInstanceCreateInfo info_create; ///< Vulkan Instance creation parameters
+    std::unique_ptr<VkInstance_T, VKEInstanceDeleter> instance; ///< Vulkan Instance
+    std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter> surface;
     VkPhysicalDevice physical_device;
     std::unique_ptr<VkDevice_T, VKEDeviceDeleter> logical_device;
     VkQueue graphics_queue;
     VkQueue present_queue;
+    std::unique_ptr<VkSwapchainKHR_T, VKESwapChainDeleter> swapchain;
+    std::vector<VkImage> swapchain_images;
+    VkFormat swapchain_image_format;
+    VkExtent2D swapchain_extent;
 
 
 
@@ -182,6 +197,7 @@ struct Instance {
     void create_surface(const window::Window& window);
     void pick_physical_device();
     void create_logical_device();
+    void create_swapchain();
 
     [[nodiscard]] auto check_device_extension_support(VkPhysicalDevice device) const -> bool;
     [[nodiscard]] auto find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices;
@@ -195,6 +211,11 @@ struct Instance {
     [[nodiscard]] auto available_validation_layers() const -> CArray<VkLayerProperties, u32>;
     /// @brief Query vulkan for the avaiable extensions
     [[nodiscard]] auto available_extensions() const -> CArray<VkExtensionProperties, u32>;
+    [[nodiscard]] auto query_swapchain_support(VkPhysicalDevice device, NonOwningPtr<VkSurfaceKHR_T> surface) const -> SwapChainSupportDetails;
+    [[nodiscard]] auto choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats) const -> VkSurfaceFormatKHR;
+    [[nodiscard]] auto choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_present_modes) const -> VkPresentModeKHR;
+    [[nodiscard]] auto choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities) const -> VkExtent2D;
 };
+
 
 }

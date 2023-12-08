@@ -7,7 +7,8 @@ target_sources(nce
     )
 target_include_directories(nce PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-target_link_libraries(nce PUBLIC 
+target_link_libraries(nce 
+    fmt
     X11::xcb 
     X11::xcb_keysyms
     X11::xkbcommon
@@ -15,6 +16,7 @@ target_link_libraries(nce PUBLIC
     )
 target_precompile_headers(nce
     PUBLIC
+    <fmt/format.h>
     <algorithm>
     <any>
     <array>

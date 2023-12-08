@@ -1,11 +1,13 @@
 #pragma once
 #include <iostream>
 
-
+template<typename T>
+using NonOwningPtr = T*;
 
 /**
  * @brief Pointer that does not own any memory nor requires any cleanup
  */
+/*
 template<typename T> class NonOwningPtr {
     public:
     using ValueType = T;
@@ -57,3 +59,4 @@ template<typename T> class NonOwningPtr {
     Pointer m_data;
 
 };
+*/

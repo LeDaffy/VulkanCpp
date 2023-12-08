@@ -1,5 +1,6 @@
+#pragma once
 #include <cstdint>
-
+#include <cstring>
 
 using u8  = std::uint8_t;
 using u16 = std::uint16_t;
@@ -15,3 +16,14 @@ using f32 = float;
 using f64 = double;
 
 using CString = const char*;
+
+template<typename SizeType=std::size_t>
+struct CStr {
+    const char* str;
+    SizeType m_size;
+    
+    constexpr CStr(const char* str) : str(str), m_size(strlen(str)) {}
+    constexpr CStr& operator=(const char* o) { this->str = o; m_size = strlen(str); return *this; };
+    constexpr operator const char*() const {return str;}
+    constexpr SizeType size() { return m_size; }
+};

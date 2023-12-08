@@ -1,3 +1,4 @@
+#include <fmt/core.h>
 #include <nce/window.hxx>
 
 
@@ -27,7 +28,7 @@ void Window::poll_events() {
 
     event_queue.push(std::move(x_event));
     if (!event_queue.curr) return;
-    //std::cout << "Event Sequence numbers [" << event_queue.curr->sequence << ", " << event_queue.next->sequence << "]" << std::endl;
+    //fmt::println("Event Sequence numbers [{}, {}]", event_queue.curr->sequence, event_queue.next->sequence);
 
 
     switch (event_queue.next->response_type & ~0x80) {
@@ -39,10 +40,10 @@ void Window::poll_events() {
                                 keys.keys[static_cast<KeyCode>(keysym)].pressed.push(true);
                                 keys.keys[static_cast<KeyCode>(keysym)].key_down = true;
 #if 0
-                                std::cout << "Down Sequence numbers [" << event->time << "]" << std::endl;
+                                fmt::println("Down Sequence numbers [{}]", event->time);
                                 char keysym_name[64];
                                 xkb_keysym_get_name(keysym, keysym_name, sizeof(keysym_name));
-                                std::cout << keysym_name << ": " << keysym << std::endl;
+                                fmt::println("{} : {}", keysym_name, keysym);
                                 LOGINFO(keysym_name);
 #endif
                                 break;
@@ -60,16 +61,14 @@ void Window::poll_events() {
                                     }
                                 }
 #if 0
-                                std::cout << "Up Sequence numbers   [" << event->time << "]" << std::endl;
+                                fmt::println("Up Sequence numbers   [{}]", event->time);
 #endif
                                 break;
                             } case XCB_BUTTON_PRESS: {
-                                // std::cout << "XCB_BUTTON_PRESS" << std::endl;
-                                [[maybe_unused]] NonOwningPtr<xcb_button_press_event_t> event = reinterpret_cast<xcb_button_press_event_t*>(event_queue.next.get());
+                                NonOwningPtr<xcb_button_press_event_t> event = reinterpret_cast<xcb_button_press_event_t*>(event_queue.next.get());
                                 break;
                             } case XCB_BUTTON_RELEASE: {
-                                // std::cout << "XCB_BUTTON_RELEASE" << std::endl;
-                                [[maybe_unused]] NonOwningPtr<xcb_button_release_event_t> event = reinterpret_cast<xcb_button_release_event_t*>(event_queue.next.get());
+                                NonOwningPtr<xcb_button_release_event_t> event = reinterpret_cast<xcb_button_release_event_t*>(event_queue.next.get());
                                 break;
                             }
     }

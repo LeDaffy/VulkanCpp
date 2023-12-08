@@ -1,9 +1,65 @@
 #include "nce/vke_macro.hxx"
+#include <fmt/core.h>
 #include <nce/vke.hxx>
+#include <limits>
+#include <algorithm>
+#include <vulkan/vulkan_core.h>
 
 
 
 namespace vke {
+    void Instance::create_swapchain() {
+        SwapChainSupportDetails swapchain_support = query_swapchain_support(this->physical_device, this->surface.get());
+        VkSurfaceFormatKHR surface_format = choose_swap_surface_format(swapchain_support.formats);
+        VkPresentModeKHR present_mode = choose_swap_present_mode(swapchain_support.present_modes);
+        VkExtent2D extent = choose_swap_extent(swapchain_support.capabilities);
+
+        u32 image_count = swapchain_support.capabilities.minImageCount + 1;
+        if (swapchain_support.capabilities.maxImageCount > 0 && image_count > swapchain_support.capabilities.maxImageCount) {
+            image_count = swapchain_support.capabilities.maxImageCount;
+        }
+        VkSwapchainCreateInfoKHR create_info{};
+        create_info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+        create_info.surface = surface.get();
+        create_info.minImageCount = image_count;
+        create_info.imageFormat = surface_format.format;
+        create_info.imageColorSpace = surface_format.colorSpace;
+        create_info.imageExtent = extent;
+        create_info.imageArrayLayers = 1;
+        create_info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+        QueueFamilyIndices indices = find_queue_families(this->physical_device);
+        u32 queueFamilyIndices[] = {indices.graphics_family.value(), indices.present_family.value()};
+
+        if (indices.graphics_family != indices.present_family) {
+            create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+            create_info.queueFamilyIndexCount = 2;
+            create_info.pQueueFamilyIndices = queueFamilyIndices;
+        } else {
+            create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+            create_info.queueFamilyIndexCount = 0; // Optional
+            create_info.pQueueFamilyIndices = nullptr; // Optional
+        }
+        create_info.preTransform = swapchain_support.capabilities.currentTransform;
+        create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+
+        create_info.presentMode = present_mode;
+        create_info.clipped = VK_TRUE;
+        create_info.oldSwapchain = VK_NULL_HANDLE;
+        VkSwapchainKHR temp_swapchain = nullptr;
+        vke::Result result =  vkCreateSwapchainKHR(logical_device.get(), &create_info, nullptr, &temp_swapchain);
+        VKE_RESULT_CRASH(result);
+        auto x = VK_SUCCESS;
+
+        this->swapchain.reset(temp_swapchain);
+        swapchain.get_deleter().logical_device = this->logical_device.get();
+
+        vkGetSwapchainImagesKHR(this->logical_device.get(), this->swapchain.get(), &image_count, nullptr);
+        swapchain_images.resize(image_count);
+        vkGetSwapchainImagesKHR(this->logical_device.get(), this->swapchain.get(), &image_count, swapchain_images.data());
+        swapchain_image_format = surface_format.format;
+        swapchain_extent = extent;
+    }
     void Instance::create_instance() {
         CArray<VkExtensionProperties, u32> extensions_available = available_extensions();
 
@@ -50,6 +106,29 @@ namespace vke {
         this->surface = std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter>(l_instance);
         this->surface.get_deleter().instance = this->instance.get();
     }
+    auto Instance::query_swapchain_support(VkPhysicalDevice device, NonOwningPtr<VkSurfaceKHR_T> surface) const -> SwapChainSupportDetails {
+        SwapChainSupportDetails details;
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
+
+        u32 format_count;
+        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, nullptr);
+
+        if (format_count != 0) {
+            details.formats.resize(format_count);
+            vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &format_count, details.formats.data());
+        }
+
+        u32 present_mode_count;
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, nullptr);
+
+        if (present_mode_count != 0) {
+            details.present_modes.resize(present_mode_count);
+            vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_mode_count, details.present_modes.data());
+        }
+
+        return details;
+    }
+
     void Instance::pick_physical_device() {
         auto devices = available_physical_devices();
         // Use an ordered map to automatically sort candidates by increasing score
@@ -77,7 +156,7 @@ namespace vke {
         vkGetPhysicalDeviceProperties(this->physical_device, &device_properties);
         VkPhysicalDeviceFeatures device_features;
         vkGetPhysicalDeviceFeatures(this->physical_device, &device_features);
-        std::cout << "Selected Vulkan device: " << device_properties.deviceName << std::endl;
+        fmt::println("Selected Vulkan device: {}", device_properties.deviceName);
 
     }
     Instance::Instance(const window::Window& window) : 
@@ -108,6 +187,7 @@ namespace vke {
             create_surface(window);
             pick_physical_device();
             create_logical_device();
+            create_swapchain();
         }
 
     void Instance::create_logical_device() {
@@ -172,7 +252,6 @@ namespace vke {
 
             vkGetDeviceQueue(this->logical_device.get(), indices.graphics_family.value(), 0, &this->graphics_queue);
         vkGetDeviceQueue(this->logical_device.get(), indices.present_family.value(), 0, &this->present_queue);
-        //std::cout << "Queues: " << this->graphics_queue << ", " << this->present_queue << std::endl;
     }
     auto Instance::find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices {
         QueueFamilyIndices indices;
@@ -221,11 +300,17 @@ namespace vke {
         vkGetPhysicalDeviceProperties(device, &device_properties);
         VkPhysicalDeviceFeatures device_features;
         vkGetPhysicalDeviceFeatures(device, &device_features);
-        std::cout << device_properties.deviceName << '\n';
+        fmt::println("{}", device_properties.deviceName);
 
         bool extensions_supported = check_device_extension_support(device);
 
-        return indices.has_value() && extensions_supported;
+        bool swapchain_adequate = false;
+        if (extensions_supported) {
+            SwapChainSupportDetails swapchain_support = query_swapchain_support(device, this->surface.get());
+            swapchain_adequate = !swapchain_support.formats.empty() && !swapchain_support.present_modes.empty();
+        }
+
+        return indices.has_value() && extensions_supported && swapchain_adequate;
     }
     auto Instance::check_device_extension_support(VkPhysicalDevice device) const -> bool {
         u32 extension_count;
@@ -242,13 +327,53 @@ namespace vke {
 
         return requiredExtensions.empty();
     }
+    auto Instance::choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats) const -> VkSurfaceFormatKHR {
+        for (const auto& available_format : available_formats) {
+            if (available_format.format == VK_FORMAT_B8G8R8A8_SRGB && available_format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+                return available_format;
+            }
+        }
+        return available_formats[0];
+    }
+
+    auto Instance::choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_present_modes) const -> VkPresentModeKHR {
+        // constexpr std::array<VkPresentModeKHR, 4> modes = {
+        //     VK_PRESENT_MODE_IMMEDIATE_KHR, // no sync
+        //     VK_PRESENT_MODE_FIFO_KHR, // vsync
+        //     VK_PRESENT_MODE_FIFO_RELAXED_KHR, // 
+        //     VK_PRESENT_MODE_MAILBOX_KHR // triple buffering
+        // };
+        VkPresentModeKHR desired = VK_PRESENT_MODE_FIFO_KHR; // guaranteed to exist
+        for (const auto& mode : available_present_modes) {
+            if (mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+                desired = VK_PRESENT_MODE_IMMEDIATE_KHR;
+            }
+        }
+        return desired;
+    }
+
+    auto Instance::choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities) const -> VkExtent2D {
+        if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+            return capabilities.currentExtent;
+        } else {
+            u32 width = 1280;
+            u32 height = 720;
+
+            VkExtent2D actualExtent = { width, height };
+
+            actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+            actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+
+            return actualExtent;
+        }
+    }
 
     auto Instance::check_validation_layer_support(std::array<CString, 1> layers) -> bool {
         auto layers_available = available_validation_layers();
         for (auto layer_name : layers) {
             bool layer_found = false;
             for (auto layer_available : layers_available) {
-                std::cout << "Layer_name: " <<  layer_available.layerName << std::endl;
+                fmt::println("Layer_name: {}", layer_available.layerName);
                 if (strcmp(layer_name, layer_available.layerName) == 0) {
                     layer_found = true;
                     break;

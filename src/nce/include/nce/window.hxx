@@ -2,6 +2,8 @@
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
 #include <xcb/xcb_keysyms.h>
+#include <xcb/xcb_atom.h>
+
 #include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-x11.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
@@ -16,6 +18,7 @@
 #include <nce/carray.hxx>
 #include <nce/non_owning_ptr.hxx>
 #include <nce/log.hxx>
+
 
 struct XCBConnectionDeleter { void operator()(xcb_connection_t* ptr){ xcb_disconnect(ptr); } };
 struct XCBKeySymDeleter { void operator()(xcb_key_symbols_t* ptr){ xcb_key_symbols_free(ptr); } };
@@ -53,10 +56,10 @@ namespace window {
     struct Attributes {
         WindowVec2<u32> dimensions;
         WindowVec2<u32> position;
-        CString name;
+        CStr<u8> name;
         Attributes() :
             dimensions(640, 480), position(0, 0), name("XCB Window") {}
-        Attributes(WindowVec2<u32> dimensions, WindowVec2<u32> position, CString name) :
+        Attributes(WindowVec2<u32> dimensions, WindowVec2<u32> position, CStr<u8> name) :
             dimensions(dimensions), position(position), name(name) {}
     };
 
@@ -105,7 +108,17 @@ namespace window {
             : attributes(attributes), x_connection(std::move(x_connection)), 
             x_window(x_window),
             kb_state(std::move(kb_state))
-        {}
+        {
+              xcb_change_property (this->x_connection.get(),
+                      XCB_PROP_MODE_REPLACE,
+                      this->x_window,
+                      XCB_ATOM_WM_NAME,
+                      XCB_ATOM_STRING,
+                      8,
+                      this->attributes.name.size(),
+                      this->attributes.name);
+
+        }
     };
     struct WindowBuilder {
         Attributes attributes;
@@ -152,44 +165,44 @@ namespace window {
 
             xcb_cw_t event_mask = XCB_CW_EVENT_MASK;
             const i32 event_valwin[] = { XCB_EVENT_MASK_KEY_PRESS
-                                       | XCB_EVENT_MASK_KEY_RELEASE
-                                       | XCB_EVENT_MASK_BUTTON_PRESS
-                                       | XCB_EVENT_MASK_BUTTON_RELEASE
-                                       | XCB_EVENT_MASK_ENTER_WINDOW
-                                       | XCB_EVENT_MASK_LEAVE_WINDOW
-                                       | XCB_EVENT_MASK_POINTER_MOTION
-                                       | XCB_EVENT_MASK_POINTER_MOTION_HINT
-                                       | XCB_EVENT_MASK_BUTTON_1_MOTION
-                                       | XCB_EVENT_MASK_BUTTON_2_MOTION
-                                       | XCB_EVENT_MASK_BUTTON_3_MOTION
-                                       | XCB_EVENT_MASK_BUTTON_4_MOTION
-                                       | XCB_EVENT_MASK_BUTTON_5_MOTION
-                                       | XCB_EVENT_MASK_BUTTON_MOTION
-                                       | XCB_EVENT_MASK_KEYMAP_STATE
-                                       | XCB_EVENT_MASK_EXPOSURE
-                                       | XCB_EVENT_MASK_VISIBILITY_CHANGE
-                                       | XCB_EVENT_MASK_STRUCTURE_NOTIFY
-                                       | XCB_EVENT_MASK_RESIZE_REDIRECT
-                                       | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY
-                                       | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
-                                       | XCB_EVENT_MASK_FOCUS_CHANGE
-                                       | XCB_EVENT_MASK_PROPERTY_CHANGE
-                                       | XCB_EVENT_MASK_COLOR_MAP_CHANGE
-                                       | XCB_EVENT_MASK_OWNER_GRAB_BUTTON
-                                       };
+                | XCB_EVENT_MASK_KEY_RELEASE
+                    | XCB_EVENT_MASK_BUTTON_PRESS
+                    | XCB_EVENT_MASK_BUTTON_RELEASE
+                    | XCB_EVENT_MASK_ENTER_WINDOW
+                    | XCB_EVENT_MASK_LEAVE_WINDOW
+                    | XCB_EVENT_MASK_POINTER_MOTION
+                    | XCB_EVENT_MASK_POINTER_MOTION_HINT
+                    | XCB_EVENT_MASK_BUTTON_1_MOTION
+                    | XCB_EVENT_MASK_BUTTON_2_MOTION
+                    | XCB_EVENT_MASK_BUTTON_3_MOTION
+                    | XCB_EVENT_MASK_BUTTON_4_MOTION
+                    | XCB_EVENT_MASK_BUTTON_5_MOTION
+                    | XCB_EVENT_MASK_BUTTON_MOTION
+                    | XCB_EVENT_MASK_KEYMAP_STATE
+                    | XCB_EVENT_MASK_EXPOSURE
+                    | XCB_EVENT_MASK_VISIBILITY_CHANGE
+                    | XCB_EVENT_MASK_STRUCTURE_NOTIFY
+                    | XCB_EVENT_MASK_RESIZE_REDIRECT
+                    | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY
+                    | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
+                    | XCB_EVENT_MASK_FOCUS_CHANGE
+                    | XCB_EVENT_MASK_PROPERTY_CHANGE
+                    | XCB_EVENT_MASK_COLOR_MAP_CHANGE
+                    | XCB_EVENT_MASK_OWNER_GRAB_BUTTON
+            };
 
             xcb_create_window(x_connection.get(),            // Connection          
-                              XCB_COPY_FROM_PARENT,          // depth (same as root)
-                              window,                        // window Id           
-                              x_screen->root,                // parent window       
-                              0, 0,                          // x, y                
-                              150, 150,                      // width, height       
-                              10,                            // border_width        
-                              XCB_WINDOW_CLASS_INPUT_OUTPUT, // class               
-                              x_screen->root_visual,         // visual              
-                              event_mask, 
-                              reinterpret_cast<const void*>(event_valwin) );
-             /* Map the window on the screen */
+                    XCB_COPY_FROM_PARENT,          // depth (same as root)
+                    window,                        // window Id           
+                    x_screen->root,                // parent window       
+                    0, 0,                          // x, y                
+                    attributes.dimensions.x, attributes.dimensions.y,                      // width, height       
+                    0,                            // border_width        
+                    XCB_WINDOW_CLASS_INPUT_OUTPUT, // class               
+                    x_screen->root_visual,         // visual              
+                    event_mask, 
+                    reinterpret_cast<const void*>(event_valwin) );
+            /* Map the window on the screen */
             xcb_map_window(x_connection.get(), window);
             xcb_flush(x_connection.get());
 
