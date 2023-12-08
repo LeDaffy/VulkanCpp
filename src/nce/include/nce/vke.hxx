@@ -51,6 +51,9 @@ struct Result {
     bool operator==(VkResult& r) { return result == r; }
     bool operator==(VkResult&& r) { return result == std::move(r); }
 
+    bool operator!=(VkResult& r) { return result != r; }
+    bool operator!=(VkResult&& r) { return result != std::move(r); }
+
 
     operator CString() const {
         switch(result) {
@@ -126,6 +129,7 @@ struct VKEDeviceDeleter { void operator()(VkDevice_T* ptr){ vkDestroyDevice(ptr,
 struct VKESwapChainDeleter { void operator()(VkSwapchainKHR_T* ptr); };
 struct VKEImageViewDeleter { void operator()(VkImageView ptr); };
 struct VKESurfaceDeleter { void operator()(VkSurfaceKHR_T* ptr); };
+struct VKEShaderModuleDeleter { void operator()(VkShaderModule_T* ptr); };
 
 struct QueueFamilyIndices {
     std::optional<u32> graphics_family;
@@ -195,6 +199,7 @@ struct Instance {
     [[nodiscard]] auto choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats) const -> VkSurfaceFormatKHR;
     [[nodiscard]] auto choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_present_modes) const -> VkPresentModeKHR;
     [[nodiscard]] auto choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities) const -> VkExtent2D;
+    [[nodiscard]] auto create_shader_module(const std::vector<std::byte>& shader_code) const -> std::unique_ptr<VkShaderModule_T, VKEShaderModuleDeleter>;
 };
 
 

@@ -1,18 +1,44 @@
 #include "nce/vke_macro.hxx"
-#include <fmt/core.h>
-#include <nce/vke.hxx>
-#include <limits>
 #include <algorithm>
+#include <filesystem>
+#include <fstream>
+#include <nce/vke.hxx>
 #include <vulkan/vulkan_core.h>
 
 
+[[nodiscard]] static auto read_file(std::filesystem::path shader_path) -> std::vector<std::byte> {
+    std::ifstream file(shader_path, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open()) {
+        fmt::println("Failed to open {}", shader_path.c_str());
+        std::abort();
+    }
+
+    size_t file_size = (size_t) file.tellg();
+    std::vector<std::byte> buffer(file_size);
+    file.seekg(0);
+    file.read(reinterpret_cast<char*>(buffer.data()), file_size);
+    fmt::println("Buffer size {}", buffer.size());
+    file.close();
+    return buffer;
+}
 
 namespace vke {
+    auto Instance::create_shader_module(const std::vector<std::byte>& shader_code) const -> std::unique_ptr<VkShaderModule_T, VKEShaderModuleDeleter> {
+        VkShaderModuleCreateInfo create_info = {};
+        create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        create_info.codeSize = shader_code.size();
+        create_info.pCode = reinterpret_cast<const u32*>(shader_code.data());
+        VkShaderModule shader_module;
+        vke::Result result = vkCreateShaderModule(logical_device.get(), &create_info, nullptr, &shader_module);
+        VKE_RESULT_CRASH(result);
+
+        return std::unique_ptr<VkShaderModule_T, VKEShaderModuleDeleter>(shader_module);
+    }
     void VKEImageViewDeleter::operator()(VkImageView ptr){ vkDestroyImageView(Instance::logical_device.get(), ptr, nullptr); } 
     void VKESwapChainDeleter::operator()(VkSwapchainKHR_T* ptr){ vkDestroySwapchainKHR(Instance::logical_device.get(), ptr, nullptr); } 
-    void VKESurfaceDeleter::operator()(VkSurfaceKHR_T* ptr){ 
-        vkDestroySurfaceKHR(Instance::instance.get(), ptr, nullptr); 
-    } 
+    void VKESurfaceDeleter::operator()(VkSurfaceKHR_T* ptr){ vkDestroySurfaceKHR(Instance::instance.get(), ptr, nullptr); } 
+    void VKEShaderModuleDeleter::operator()(VkShaderModule_T* ptr) { vkDestroyShaderModule(Instance::logical_device.get(), ptr, nullptr); }
 
     //static members
     std::unique_ptr<VkInstance_T, VKEInstanceDeleter> Instance::instance = nullptr;
@@ -21,7 +47,24 @@ namespace vke {
     std::unique_ptr<VkDevice_T, VKEDeviceDeleter> Instance::logical_device = nullptr;
 
     void Instance::create_graphics_pipeline() {
+        auto vs_source = read_file("shaders/hello.vert.spv");
+        auto fs_source = read_file("shaders/hello.frag.spv");
 
+        auto vs_module = create_shader_module(vs_source);
+        auto fs_module = create_shader_module(fs_source);
+
+        VkPipelineShaderStageCreateInfo vs_stage_info{};
+        vs_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        vs_stage_info.stage = VK_SHADER_STAGE_VERTEX_BIT;
+        vs_stage_info.module = vs_module.get();
+        vs_stage_info.pName = "main";
+        VkPipelineShaderStageCreateInfo fs_stage_info{};
+        fs_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        fs_stage_info.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+        fs_stage_info.module = fs_module.get();
+        fs_stage_info.pName = "main";
+
+        VkPipelineShaderStageCreateInfo shader_stages[] = {vs_stage_info, fs_stage_info};
     }
     void Instance::create_swapchain() {
         SwapChainSupportDetails swapchain_support = query_swapchain_support(this->physical_device, this->surface.get());
@@ -220,15 +263,16 @@ namespace vke {
                 this->extensions.size(),                      // uint32_t enabledExtensionCount;
                 this->extensions.data()                       // const char* const* ppEnabledExtensionNames;
                 })
-        {
-            create_instance();
-            create_surface(window);
-            pick_physical_device();
-            create_logical_device();
-            create_swapchain();
-            create_image_views();
+    {
+        create_instance();
+        create_surface(window);
+        pick_physical_device();
+        create_logical_device();
+        create_swapchain();
+        create_image_views();
+        create_graphics_pipeline();
 
-        }
+    }
 
     void Instance::create_logical_device() {
         // Specifying the queues to be created

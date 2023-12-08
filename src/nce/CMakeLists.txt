@@ -16,7 +16,6 @@ target_link_libraries(nce
     )
 target_precompile_headers(nce
     PUBLIC
-    <fmt/format.h>
     <algorithm>
     <any>
     <array>
@@ -24,9 +23,12 @@ target_precompile_headers(nce
     <cstddef>
     <cstdint>
     <cstdio>
+    <filesystem>
+    <fmt/format.h>
     <format>
     <functional>
     <iostream>
+    <limits>
     <memory>
     <optional>
     <ranges>
@@ -35,6 +37,7 @@ target_precompile_headers(nce
     <string_view>
     <tuple>
     <unistd.h>
+    <fstream>
     <unordered_map>
     <vector>
     )
