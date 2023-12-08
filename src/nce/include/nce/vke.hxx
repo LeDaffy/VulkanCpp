@@ -121,36 +121,12 @@ struct Result {
 };
 
 
-/**
- *  @brief Deleter for VKInstace (aka VkInstance_T*).
- */
-struct VKEInstanceDeleter { 
-    void operator()(VkInstance_T* ptr){ 
-        vkDestroyInstance(ptr, nullptr); 
-    } };
-
-/**
- *  @brief Deleter for VKDevice
- */
+struct VKEInstanceDeleter { void operator()(VkInstance_T* ptr){ vkDestroyInstance(ptr, nullptr); } };
 struct VKEDeviceDeleter { void operator()(VkDevice_T* ptr){ vkDestroyDevice(ptr, nullptr); } };
+struct VKESwapChainDeleter { void operator()(VkSwapchainKHR_T* ptr); };
+struct VKEImageViewDeleter { void operator()(VkImageView ptr); };
+struct VKESurfaceDeleter { void operator()(VkSurfaceKHR_T* ptr); };
 
-
-struct VKESwapChainDeleter {
-    VkDevice_T* logical_device;
-    VKESwapChainDeleter() : logical_device(nullptr) {}
-    void operator()(VkSwapchainKHR_T* ptr){ vkDestroySwapchainKHR(logical_device, ptr, nullptr); } 
-};
-
-/**
- *  @brief Deleter for VKSurface
- */
-struct VKESurfaceDeleter {
-    VkInstance_T* instance;
-    VKESurfaceDeleter() : instance(nullptr) {}
-    void operator()(VkSurfaceKHR_T* ptr){ 
-        vkDestroySurfaceKHR(instance, ptr, nullptr); 
-    } 
-};
 struct QueueFamilyIndices {
     std::optional<u32> graphics_family;
     std::optional<u32> present_family;
@@ -168,6 +144,7 @@ struct SwapChainSupportDetails {
  *  @brief Container that initializes and holds a vulkan instance.
  */
 struct Instance {
+    // Static Members
     /// @brief Required extensions for drawing with vulkan
     constexpr static std::array<CString, 1> validation_layers = { "VK_LAYER_KHRONOS_validation" };
     constexpr static std::array<CString, 2> extensions = { "VK_KHR_surface", "VK_KHR_xcb_surface" };
@@ -176,14 +153,15 @@ struct Instance {
     //members
     VkApplicationInfo info_app; ///< Properties of the vulkan application
     VkInstanceCreateInfo info_create; ///< Vulkan Instance creation parameters
-    std::unique_ptr<VkInstance_T, VKEInstanceDeleter> instance; ///< Vulkan Instance
-    std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter> surface;
-    VkPhysicalDevice physical_device;
-    std::unique_ptr<VkDevice_T, VKEDeviceDeleter> logical_device;
+    static std::unique_ptr<VkInstance_T, VKEInstanceDeleter> instance; ///< Vulkan Instance
+    static std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter> surface;
+    static VkPhysicalDevice physical_device;
+    static std::unique_ptr<VkDevice_T, VKEDeviceDeleter> logical_device;
     VkQueue graphics_queue;
     VkQueue present_queue;
     std::unique_ptr<VkSwapchainKHR_T, VKESwapChainDeleter> swapchain;
     std::vector<VkImage> swapchain_images;
+    std::vector<std::unique_ptr<VkImageView_T, VKEImageViewDeleter>> swapchain_image_views;
     VkFormat swapchain_image_format;
     VkExtent2D swapchain_extent;
 
@@ -198,6 +176,7 @@ struct Instance {
     void pick_physical_device();
     void create_logical_device();
     void create_swapchain();
+    void create_image_views();
 
     [[nodiscard]] auto check_device_extension_support(VkPhysicalDevice device) const -> bool;
     [[nodiscard]] auto find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices;

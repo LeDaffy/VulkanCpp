@@ -8,6 +8,18 @@
 
 
 namespace vke {
+    void VKEImageViewDeleter::operator()(VkImageView ptr){ vkDestroyImageView(Instance::logical_device.get(), ptr, nullptr); } 
+    void VKESwapChainDeleter::operator()(VkSwapchainKHR_T* ptr){ vkDestroySwapchainKHR(Instance::logical_device.get(), ptr, nullptr); } 
+    void VKESurfaceDeleter::operator()(VkSurfaceKHR_T* ptr){ 
+        vkDestroySurfaceKHR(Instance::instance.get(), ptr, nullptr); 
+    } 
+
+    //static members
+    std::unique_ptr<VkInstance_T, VKEInstanceDeleter> Instance::instance = nullptr;
+    std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter> Instance::surface = nullptr;
+    VkPhysicalDevice Instance::physical_device = nullptr;
+    std::unique_ptr<VkDevice_T, VKEDeviceDeleter> Instance::logical_device = nullptr;
+
     void Instance::create_swapchain() {
         SwapChainSupportDetails swapchain_support = query_swapchain_support(this->physical_device, this->surface.get());
         VkSurfaceFormatKHR surface_format = choose_swap_surface_format(swapchain_support.formats);
@@ -52,13 +64,40 @@ namespace vke {
         auto x = VK_SUCCESS;
 
         this->swapchain.reset(temp_swapchain);
-        swapchain.get_deleter().logical_device = this->logical_device.get();
 
         vkGetSwapchainImagesKHR(this->logical_device.get(), this->swapchain.get(), &image_count, nullptr);
         swapchain_images.resize(image_count);
         vkGetSwapchainImagesKHR(this->logical_device.get(), this->swapchain.get(), &image_count, swapchain_images.data());
         swapchain_image_format = surface_format.format;
         swapchain_extent = extent;
+    }
+    void Instance::create_image_views() {
+        swapchain_image_views.resize(swapchain_images.size());
+        for (const auto [index, image] : std::views::enumerate(swapchain_image_views) ) {
+            VkImageViewCreateInfo create_info{};
+            create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            create_info.image = swapchain_images[index];
+            create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            create_info.format = swapchain_image_format;
+            create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+            create_info.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+            create_info.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+            create_info.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+            create_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            create_info.subresourceRange.baseMipLevel = 0;
+            create_info.subresourceRange.levelCount = 1;
+            create_info.subresourceRange.baseArrayLayer = 0;
+            create_info.subresourceRange.layerCount = 1;
+
+            VkImageView_T* temp_image_views = nullptr;
+            vke::Result result = vkCreateImageView(this->logical_device.get(), &create_info, nullptr, &temp_image_views);
+            swapchain_image_views[index].reset(temp_image_views);
+            if (!result) {
+                fmt::println("Failed to create image view");
+                VKE_RESULT_CRASH(result);
+            }
+
+        }
     }
     void Instance::create_instance() {
         CArray<VkExtensionProperties, u32> extensions_available = available_extensions();
@@ -104,7 +143,6 @@ namespace vke {
             std::abort();
         }
         this->surface = std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter>(l_instance);
-        this->surface.get_deleter().instance = this->instance.get();
     }
     auto Instance::query_swapchain_support(VkPhysicalDevice device, NonOwningPtr<VkSurfaceKHR_T> surface) const -> SwapChainSupportDetails {
         SwapChainSupportDetails details;
@@ -160,8 +198,6 @@ namespace vke {
 
     }
     Instance::Instance(const window::Window& window) : 
-        instance(nullptr),
-        surface(nullptr),
         info_app({
                 VK_STRUCTURE_TYPE_APPLICATION_INFO, // VkStructureType    sType;
                 nullptr,                            // const void* pNext;
@@ -180,14 +216,15 @@ namespace vke {
                 nullptr,                                // const char* const* ppEnabledLayerNames;
                 this->extensions.size(),                      // uint32_t enabledExtensionCount;
                 this->extensions.data()                       // const char* const* ppEnabledExtensionNames;
-                }),
-        physical_device(VK_NULL_HANDLE)
+                })
         {
             create_instance();
             create_surface(window);
             pick_physical_device();
             create_logical_device();
             create_swapchain();
+            create_image_views();
+
         }
 
     void Instance::create_logical_device() {
