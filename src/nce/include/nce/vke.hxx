@@ -121,6 +121,7 @@ struct VKEShaderModuleDeleter { void operator()(VkShaderModule_T* ptr); };
 struct VKEPipelineLayoutDeleter { void operator()(VkPipelineLayout_T* ptr); };
 struct VKERenderPassDeleter { void operator()(VkRenderPass_T* ptr); };
 struct VKEGraphicsPipelineDeleter { void operator()(VkPipeline_T* ptr); };
+struct VKEFramebufferDeleter { void operator()(VkFramebuffer_T* ptr); };
 
 struct QueueFamilyIndices {
     std::optional<u32> graphics_family;
@@ -162,6 +163,7 @@ struct Instance {
     std::unique_ptr<VkRenderPass_T, VKERenderPassDeleter> render_pass;
     std::unique_ptr<VkPipelineLayout_T, VKEPipelineLayoutDeleter> pipeline_layout;
     std::unique_ptr<VkPipeline_T, VKEGraphicsPipelineDeleter> graphics_pipeline;
+    std::vector<std::unique_ptr<VkFramebuffer_T, VKEFramebufferDeleter>> swapchain_framebuffers;
 
 
 
@@ -177,6 +179,7 @@ struct Instance {
     void create_image_views();
     void create_render_pass();
     void create_graphics_pipeline();
+    void create_framebuffers();
 
     [[nodiscard]] auto check_device_extension_support(VkPhysicalDevice device) const -> bool;
     [[nodiscard]] auto find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices;

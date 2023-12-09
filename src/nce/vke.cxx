@@ -24,6 +24,35 @@
 }
 
 namespace vke {
+    //static members
+    std::unique_ptr<VkInstance_T, VKEInstanceDeleter> Instance::instance = nullptr;
+    std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter> Instance::surface = nullptr;
+    VkPhysicalDevice Instance::physical_device = nullptr;
+    std::unique_ptr<VkDevice_T, VKEDeviceDeleter> Instance::logical_device = nullptr;
+
+    // function definitions
+    void Instance::create_framebuffers() {
+        swapchain_framebuffers.resize(swapchain_image_views.size());
+
+        for (const auto& [index, image_view] : std::views::enumerate(swapchain_image_views)) {
+            VkImageView attachments[] = {
+                image_view.get()
+            };
+            VkFramebufferCreateInfo framebuffer_info{};
+            framebuffer_info.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+            framebuffer_info.renderPass = render_pass.get();
+            framebuffer_info.attachmentCount = 1;
+            framebuffer_info.pAttachments = attachments;
+            framebuffer_info.width = swapchain_extent.width;
+            framebuffer_info.height = swapchain_extent.height;
+            framebuffer_info.layers = 1;
+
+            VkFramebuffer temp_framebuffer = nullptr;
+            vke::Result result = vkCreateFramebuffer(logical_device.get(), &framebuffer_info, nullptr, &temp_framebuffer);
+            VKE_RESULT_CRASH(result);
+            swapchain_framebuffers[index].reset(temp_framebuffer);
+        }
+    };
     auto Instance::create_shader_module(const std::vector<std::byte>& shader_code) const -> std::unique_ptr<VkShaderModule_T, VKEShaderModuleDeleter> {
         VkShaderModuleCreateInfo create_info = {};
         create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -35,19 +64,7 @@ namespace vke {
 
         return std::unique_ptr<VkShaderModule_T, VKEShaderModuleDeleter>(shader_module);
     }
-    void VKEImageViewDeleter::operator()(VkImageView ptr){ vkDestroyImageView(Instance::logical_device.get(), ptr, nullptr); } 
-    void VKESwapChainDeleter::operator()(VkSwapchainKHR_T* ptr){ vkDestroySwapchainKHR(Instance::logical_device.get(), ptr, nullptr); } 
-    void VKESurfaceDeleter::operator()(VkSurfaceKHR_T* ptr){ vkDestroySurfaceKHR(Instance::instance.get(), ptr, nullptr); } 
-    void VKEShaderModuleDeleter::operator()(VkShaderModule_T* ptr) { vkDestroyShaderModule(Instance::logical_device.get(), ptr, nullptr); }
-    void VKEPipelineLayoutDeleter::operator()(VkPipelineLayout_T* ptr) { vkDestroyPipelineLayout(Instance::logical_device.get(), ptr, nullptr); }
-    void VKERenderPassDeleter::operator()(VkRenderPass_T* ptr) { vkDestroyRenderPass(Instance::logical_device.get(), ptr, nullptr); }
-    void VKEGraphicsPipelineDeleter::operator()(VkPipeline_T* ptr) { vkDestroyPipeline(Instance::logical_device.get(), ptr, nullptr); }
 
-    //static members
-    std::unique_ptr<VkInstance_T, VKEInstanceDeleter> Instance::instance = nullptr;
-    std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter> Instance::surface = nullptr;
-    VkPhysicalDevice Instance::physical_device = nullptr;
-    std::unique_ptr<VkDevice_T, VKEDeviceDeleter> Instance::logical_device = nullptr;
 
     void Instance::create_render_pass() {
         VkAttachmentDescription color_attachment{};
@@ -279,7 +296,7 @@ namespace vke {
     }
     void Instance::create_image_views() {
         swapchain_image_views.resize(swapchain_images.size());
-        for (const auto [index, image] : std::views::enumerate(swapchain_image_views) ) {
+        for (const auto& [index, image] : std::views::enumerate(swapchain_image_views) ) {
             VkImageViewCreateInfo create_info{};
             create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             create_info.image = swapchain_images[index];
@@ -432,6 +449,7 @@ namespace vke {
         create_image_views();
         create_render_pass();
         create_graphics_pipeline();
+        create_framebuffers();
 
     }
 
@@ -507,7 +525,7 @@ namespace vke {
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
 
         VkBool32 present_support = 0;
-        for (const auto [index, queue_family] : std::views::enumerate(queue_families) ) {
+        for (const auto& [index, queue_family] : std::views::enumerate(queue_families) ) {
             if (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 indices.graphics_family = index;
             }
@@ -661,4 +679,13 @@ namespace vke {
         VKE_RESULT_CRASH(result);
         return extensions_available;
     }
+
+    void VKEImageViewDeleter::operator()(VkImageView ptr){ vkDestroyImageView(Instance::logical_device.get(), ptr, nullptr); } 
+    void VKESwapChainDeleter::operator()(VkSwapchainKHR_T* ptr){ vkDestroySwapchainKHR(Instance::logical_device.get(), ptr, nullptr); } 
+    void VKESurfaceDeleter::operator()(VkSurfaceKHR_T* ptr){ vkDestroySurfaceKHR(Instance::instance.get(), ptr, nullptr); } 
+    void VKEShaderModuleDeleter::operator()(VkShaderModule_T* ptr) { vkDestroyShaderModule(Instance::logical_device.get(), ptr, nullptr); }
+    void VKEPipelineLayoutDeleter::operator()(VkPipelineLayout_T* ptr) { vkDestroyPipelineLayout(Instance::logical_device.get(), ptr, nullptr); }
+    void VKERenderPassDeleter::operator()(VkRenderPass_T* ptr) { vkDestroyRenderPass(Instance::logical_device.get(), ptr, nullptr); }
+    void VKEGraphicsPipelineDeleter::operator()(VkPipeline_T* ptr) { vkDestroyPipeline(Instance::logical_device.get(), ptr, nullptr); }
+    void VKEFramebufferDeleter::operator()(VkFramebuffer_T* ptr) { vkDestroyFramebuffer(Instance::logical_device.get(), ptr, nullptr); }
 }
