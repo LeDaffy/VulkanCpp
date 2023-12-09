@@ -1,6 +1,4 @@
-cmake_minimum_required(VERSION 3.28)
-# Turning off extensions avoids and issue with the clang 16 compiler
-# clang 17 and greater can avoid this setting
+cmake_minimum_required(VERSION 3.27)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD 23)
 

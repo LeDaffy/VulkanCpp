@@ -31,6 +31,74 @@ namespace vke {
     std::unique_ptr<VkDevice_T, VKEDeviceDeleter> Instance::logical_device = nullptr;
 
     // function definitions
+    void Instance::record_command_buffer(VkCommandBuffer command_buffer, u32 image_index) {
+        VkCommandBufferBeginInfo begin_info{};
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        begin_info.flags = 0; // Optional
+        begin_info.pInheritanceInfo = nullptr; // Optional
+
+        vke::Result result = vkBeginCommandBuffer(command_buffer, &begin_info);
+        VKE_RESULT_CRASH(result);
+        //fmt::println("failed to begin recording command buffer!");
+        VkRenderPassBeginInfo render_pass_info{};
+        render_pass_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        render_pass_info.renderPass = render_pass.get();
+        render_pass_info.framebuffer = swapchain_framebuffers[image_index].get();
+        render_pass_info.renderArea.offset = {0, 0};
+        render_pass_info.renderArea.extent = swapchain_extent;
+
+        VkClearValue clear_color = {{{0.2f, 0.4f, 0.6f, 1.0f}}};
+        render_pass_info.clearValueCount = 1;
+        render_pass_info.pClearValues = &clear_color;
+
+        vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline.get());
+
+        VkViewport viewport{};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = static_cast<f32>(swapchain_extent.width);
+        viewport.height = static_cast<f32>(swapchain_extent.height);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+
+        VkRect2D scissor{};
+        scissor.offset = {0, 0};
+        scissor.extent = swapchain_extent;
+        vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+        vkCmdDraw(command_buffer, 3, 1, 0, 0);
+        vkCmdEndRenderPass(command_buffer);
+        result = vkEndCommandBuffer(command_buffer);
+        VKE_RESULT_CRASH(result);
+        // "failed to record command buffer!"
+    }
+    void Instance::create_command_buffer() {
+        VkCommandBufferAllocateInfo alloc_info{};
+        alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        alloc_info.commandPool = command_pool.get();
+        alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        alloc_info.commandBufferCount = 1;
+
+        if (vkAllocateCommandBuffers(logical_device.get(), &alloc_info, &command_buffer) != VK_SUCCESS) {
+            fmt::println("failed to allocate command buffers!");
+            std::abort();
+        }
+
+    }
+    void Instance::create_command_pool() {
+        QueueFamilyIndices queue_family_indices = find_queue_families(physical_device);
+
+        VkCommandPoolCreateInfo pool_info{};
+        pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        pool_info.queueFamilyIndex = queue_family_indices.graphics_family.value();
+        VkCommandPool temp_command_poll = nullptr;
+        vke::Result result = vkCreateCommandPool(logical_device.get(), &pool_info, nullptr, &temp_command_poll);
+        command_pool.reset(temp_command_poll);
+
+
+    }
     void Instance::create_framebuffers() {
         swapchain_framebuffers.resize(swapchain_image_views.size());
 
@@ -99,7 +167,7 @@ namespace vke {
         VkRenderPass temp_render_pass;
         vke::Result result = vkCreateRenderPass(logical_device.get(), &renderPassInfo, nullptr, &temp_render_pass);
         VKE_RESULT_CRASH(result);
-        
+
         render_pass.reset(temp_render_pass);
     }
     void Instance::create_graphics_pipeline() {
@@ -450,6 +518,8 @@ namespace vke {
         create_render_pass();
         create_graphics_pipeline();
         create_framebuffers();
+        create_command_pool();
+        create_command_buffer();
 
     }
 
@@ -688,4 +758,5 @@ namespace vke {
     void VKERenderPassDeleter::operator()(VkRenderPass_T* ptr) { vkDestroyRenderPass(Instance::logical_device.get(), ptr, nullptr); }
     void VKEGraphicsPipelineDeleter::operator()(VkPipeline_T* ptr) { vkDestroyPipeline(Instance::logical_device.get(), ptr, nullptr); }
     void VKEFramebufferDeleter::operator()(VkFramebuffer_T* ptr) { vkDestroyFramebuffer(Instance::logical_device.get(), ptr, nullptr); }
+    void VKECommandPoolDeleter::operator()(VkCommandPool_T* ptr) { vkDestroyCommandPool(Instance::logical_device.get(), ptr, nullptr); }
 }
