@@ -118,8 +118,9 @@ struct VKESwapChainDeleter { void operator()(VkSwapchainKHR_T* ptr); };
 struct VKEImageViewDeleter { void operator()(VkImageView ptr); };
 struct VKESurfaceDeleter { void operator()(VkSurfaceKHR_T* ptr); };
 struct VKEShaderModuleDeleter { void operator()(VkShaderModule_T* ptr); };
-struct VKEPipelineDeleter { void operator()(VkPipelineLayout_T* ptr); };
+struct VKEPipelineLayoutDeleter { void operator()(VkPipelineLayout_T* ptr); };
 struct VKERenderPassDeleter { void operator()(VkRenderPass_T* ptr); };
+struct VKEGraphicsPipelineDeleter { void operator()(VkPipeline_T* ptr); };
 
 struct QueueFamilyIndices {
     std::optional<u32> graphics_family;
@@ -159,7 +160,8 @@ struct Instance {
     VkFormat swapchain_image_format;
     VkExtent2D swapchain_extent;
     std::unique_ptr<VkRenderPass_T, VKERenderPassDeleter> render_pass;
-    std::unique_ptr<VkPipelineLayout_T, VKEPipelineDeleter> pipeline_layout;
+    std::unique_ptr<VkPipelineLayout_T, VKEPipelineLayoutDeleter> pipeline_layout;
+    std::unique_ptr<VkPipeline_T, VKEGraphicsPipelineDeleter> graphics_pipeline;
 
 
 
