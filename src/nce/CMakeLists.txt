@@ -26,9 +26,11 @@ target_precompile_headers(nce
     <filesystem>
     <fmt/format.h>
     <format>
+    <fstream>
     <functional>
     <iostream>
     <limits>
+    <map>
     <memory>
     <optional>
     <ranges>
@@ -37,7 +39,6 @@ target_precompile_headers(nce
     <string_view>
     <tuple>
     <unistd.h>
-    <fstream>
     <unordered_map>
     <vector>
     )

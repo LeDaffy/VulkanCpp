@@ -40,6 +40,7 @@ namespace vke {
     void VKESurfaceDeleter::operator()(VkSurfaceKHR_T* ptr){ vkDestroySurfaceKHR(Instance::instance.get(), ptr, nullptr); } 
     void VKEShaderModuleDeleter::operator()(VkShaderModule_T* ptr) { vkDestroyShaderModule(Instance::logical_device.get(), ptr, nullptr); }
     void VKEPipelineDeleter::operator()(VkPipelineLayout_T* ptr) { vkDestroyPipelineLayout(Instance::logical_device.get(), ptr, nullptr); }
+    void VKERenderPassDeleter::operator()(VkRenderPass_T* ptr) { vkDestroyRenderPass(Instance::logical_device.get(), ptr, nullptr); }
 
     //static members
     std::unique_ptr<VkInstance_T, VKEInstanceDeleter> Instance::instance = nullptr;
@@ -47,6 +48,42 @@ namespace vke {
     VkPhysicalDevice Instance::physical_device = nullptr;
     std::unique_ptr<VkDevice_T, VKEDeviceDeleter> Instance::logical_device = nullptr;
 
+    void Instance::create_render_pass() {
+        VkAttachmentDescription color_attachment{};
+        color_attachment.format = swapchain_image_format;
+        color_attachment.samples = VK_SAMPLE_COUNT_1_BIT;
+        color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        color_attachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        color_attachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        color_attachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        color_attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        color_attachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        color_attachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+        VkAttachmentReference color_attachment_ref{};
+        color_attachment_ref.attachment = 0;
+        color_attachment_ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        VkSubpassDescription subpass{};
+        subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments = &color_attachment_ref;
+
+
+        VkRenderPassCreateInfo renderPassInfo{};
+        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        renderPassInfo.attachmentCount = 1;
+        renderPassInfo.pAttachments = &color_attachment;
+        renderPassInfo.subpassCount = 1;
+        renderPassInfo.pSubpasses = &subpass;
+
+        VkRenderPass temp_render_pass;
+        vke::Result result = vkCreateRenderPass(logical_device.get(), &renderPassInfo, nullptr, &temp_render_pass);
+        VKE_RESULT_CRASH(result);
+        
+        render_pass.reset(temp_render_pass);
+    }
     void Instance::create_graphics_pipeline() {
         auto vs_source = read_file("shaders/hello.vert.spv");
         auto fs_source = read_file("shaders/hello.frag.spv");
@@ -368,6 +405,7 @@ namespace vke {
         create_logical_device();
         create_swapchain();
         create_image_views();
+        create_render_pass();
         create_graphics_pipeline();
 
     }

@@ -1,15 +1,3 @@
-#include <array> 
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <expected>
-#include <iostream>
-#include <optional>
-#include <memory>
-#include <tuple>
-#include <map>
-
-
 #include <vulkan/vulkan_core.h>
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
@@ -131,6 +119,7 @@ struct VKEImageViewDeleter { void operator()(VkImageView ptr); };
 struct VKESurfaceDeleter { void operator()(VkSurfaceKHR_T* ptr); };
 struct VKEShaderModuleDeleter { void operator()(VkShaderModule_T* ptr); };
 struct VKEPipelineDeleter { void operator()(VkPipelineLayout_T* ptr); };
+struct VKERenderPassDeleter { void operator()(VkRenderPass_T* ptr); };
 
 struct QueueFamilyIndices {
     std::optional<u32> graphics_family;
@@ -169,6 +158,7 @@ struct Instance {
     std::vector<std::unique_ptr<VkImageView_T, VKEImageViewDeleter>> swapchain_image_views;
     VkFormat swapchain_image_format;
     VkExtent2D swapchain_extent;
+    std::unique_ptr<VkRenderPass_T, VKERenderPassDeleter> render_pass;
     std::unique_ptr<VkPipelineLayout_T, VKEPipelineDeleter> pipeline_layout;
 
 
@@ -183,6 +173,7 @@ struct Instance {
     void create_logical_device();
     void create_swapchain();
     void create_image_views();
+    void create_render_pass();
     void create_graphics_pipeline();
 
     [[nodiscard]] auto check_device_extension_support(VkPhysicalDevice device) const -> bool;
