@@ -1,5 +1,6 @@
 #include "nce/vke_macro.hxx"
 #include <algorithm>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <nce/vke.hxx>
@@ -31,6 +32,59 @@ namespace vke {
     std::unique_ptr<VkDevice_T, VKEDeviceDeleter> Instance::logical_device = nullptr;
 
     // function definitions
+    void Instance::draw_frame() {
+        vkWaitForFences(logical_device.get(), 1, reinterpret_cast<const VkFence*>(&in_flight_fence), VK_TRUE, UINT64_MAX);
+        vkResetFences(logical_device.get(), 1, reinterpret_cast<const VkFence*>(&in_flight_fence));
+
+        u32 image_index;
+        vkAcquireNextImageKHR(logical_device.get(), swapchain.get(), UINT64_MAX, image_available_semaphore.get(), VK_NULL_HANDLE, &image_index);
+
+        vkResetCommandBuffer(command_buffer, 0);
+        record_command_buffer(command_buffer, image_index);
+
+        VkSubmitInfo submit_info{};
+        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+
+        VkSemaphore wait_semaphores[] = {image_available_semaphore.get()};
+        VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+        submit_info.waitSemaphoreCount = 1;
+        submit_info.pWaitSemaphores = wait_semaphores;
+        submit_info.pWaitDstStageMask = wait_stages;
+        submit_info.commandBufferCount = 1;
+        submit_info.pCommandBuffers = &command_buffer;
+        VkSemaphore signal_semaphores[] = {render_finished_semaphore.get()};
+        submit_info.signalSemaphoreCount = 1;
+        submit_info.pSignalSemaphores = signal_semaphores;
+        vke::Result result = vkQueueSubmit(graphics_queue, 1, &submit_info, in_flight_fence.get());
+        VKE_RESULT_CRASH(result);
+
+        VkPresentInfoKHR present_info{};
+        present_info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+        present_info.waitSemaphoreCount = 1;
+        present_info.pWaitSemaphores = signal_semaphores;
+        VkSwapchainKHR swapChains[] = {swapchain.get()};
+        present_info.swapchainCount = 1;
+        present_info.pSwapchains = swapChains;
+        present_info.pImageIndices = &image_index;
+        vkQueuePresentKHR(present_queue, &present_info);
+
+
+
+    }
+    void Instance::create_sync_objects() {
+        VkSemaphoreCreateInfo semaphore_info{};
+        semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        VkFenceCreateInfo fence_info{};
+        fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        vke::Result result =  vkCreateSemaphore(logical_device.get(), &semaphore_info, nullptr, reinterpret_cast<VkSemaphore*>(&image_available_semaphore));
+        VKE_RESULT_CRASH(result);
+        result = vkCreateSemaphore(logical_device.get(), &semaphore_info, nullptr, reinterpret_cast<VkSemaphore*>(&render_finished_semaphore));
+        VKE_RESULT_CRASH(result);
+        result = vkCreateFence(logical_device.get(), &fence_info, nullptr, reinterpret_cast<VkFence*>(&in_flight_fence));
+        VKE_RESULT_CRASH(result);
+    }
     void Instance::record_command_buffer(VkCommandBuffer command_buffer, u32 image_index) {
         VkCommandBufferBeginInfo begin_info{};
         begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -93,11 +147,7 @@ namespace vke {
         pool_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         pool_info.queueFamilyIndex = queue_family_indices.graphics_family.value();
-        VkCommandPool temp_command_poll = nullptr;
-        vke::Result result = vkCreateCommandPool(logical_device.get(), &pool_info, nullptr, &temp_command_poll);
-        command_pool.reset(temp_command_poll);
-
-
+        vke::Result result = vkCreateCommandPool(logical_device.get(), &pool_info, nullptr, reinterpret_cast<VkCommandPool*>(&command_pool));
     }
     void Instance::create_framebuffers() {
         swapchain_framebuffers.resize(swapchain_image_views.size());
@@ -115,10 +165,8 @@ namespace vke {
             framebuffer_info.height = swapchain_extent.height;
             framebuffer_info.layers = 1;
 
-            VkFramebuffer temp_framebuffer = nullptr;
-            vke::Result result = vkCreateFramebuffer(logical_device.get(), &framebuffer_info, nullptr, &temp_framebuffer);
+            vke::Result result = vkCreateFramebuffer(logical_device.get(), &framebuffer_info, nullptr, reinterpret_cast<VkFramebuffer*>(&(swapchain_framebuffers[index])));
             VKE_RESULT_CRASH(result);
-            swapchain_framebuffers[index].reset(temp_framebuffer);
         }
     };
     auto Instance::create_shader_module(const std::vector<std::byte>& shader_code) const -> std::unique_ptr<VkShaderModule_T, VKEShaderModuleDeleter> {
@@ -164,11 +212,18 @@ namespace vke {
         renderPassInfo.subpassCount = 1;
         renderPassInfo.pSubpasses = &subpass;
 
-        VkRenderPass temp_render_pass;
-        vke::Result result = vkCreateRenderPass(logical_device.get(), &renderPassInfo, nullptr, &temp_render_pass);
-        VKE_RESULT_CRASH(result);
+        VkSubpassDependency dependency{};
+        dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+        dependency.dstSubpass = 0;
+        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.srcAccessMask = 0;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        renderPassInfo.dependencyCount = 1;
+        renderPassInfo.pDependencies = &dependency;
 
-        render_pass.reset(temp_render_pass);
+        vke::Result result = vkCreateRenderPass(logical_device.get(), &renderPassInfo, nullptr, reinterpret_cast<VkRenderPass*>(&render_pass));
+        VKE_RESULT_CRASH(result);
     }
     void Instance::create_graphics_pipeline() {
         auto vs_source = read_file("shaders/hello.vert.spv");
@@ -281,10 +336,8 @@ namespace vke {
         pipeline_layout_info.pushConstantRangeCount = 0; // Optional
         pipeline_layout_info.pPushConstantRanges = nullptr; // Optional
 
-        VkPipelineLayout temp_pipeline_layout = nullptr;
-        vke::Result result = vkCreatePipelineLayout(logical_device.get(), &pipeline_layout_info, nullptr, &temp_pipeline_layout);
+        vke::Result result = vkCreatePipelineLayout(logical_device.get(), &pipeline_layout_info, nullptr, reinterpret_cast<VkPipelineLayout*>(&pipeline_layout));
         VKE_RESULT_CRASH(result);
-        pipeline_layout.reset(temp_pipeline_layout);
 
         VkGraphicsPipelineCreateInfo pipeline_info{};
         pipeline_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -304,10 +357,8 @@ namespace vke {
         pipeline_info.basePipelineHandle = VK_NULL_HANDLE; // Optional
         pipeline_info.basePipelineIndex = -1; // Optional
 
-        VkPipeline temp_graphics_pipeline;
-        result = vkCreateGraphicsPipelines(logical_device.get(), VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &temp_graphics_pipeline);
+        result = vkCreateGraphicsPipelines(logical_device.get(), VK_NULL_HANDLE, 1, &pipeline_info, nullptr, reinterpret_cast<VkPipeline*>(&graphics_pipeline));
         VKE_RESULT_CRASH(result);
-        graphics_pipeline.reset(temp_graphics_pipeline);
     }
 
 
@@ -349,12 +400,10 @@ namespace vke {
         create_info.presentMode = present_mode;
         create_info.clipped = VK_TRUE;
         create_info.oldSwapchain = VK_NULL_HANDLE;
-        VkSwapchainKHR temp_swapchain = nullptr;
-        vke::Result result =  vkCreateSwapchainKHR(logical_device.get(), &create_info, nullptr, &temp_swapchain);
+        vke::Result result =  vkCreateSwapchainKHR(logical_device.get(), &create_info, nullptr, reinterpret_cast<VkSwapchainKHR*>(&swapchain));
         VKE_RESULT_CRASH(result);
         auto x = VK_SUCCESS;
 
-        this->swapchain.reset(temp_swapchain);
 
         vkGetSwapchainImagesKHR(this->logical_device.get(), this->swapchain.get(), &image_count, nullptr);
         swapchain_images.resize(image_count);
@@ -380,9 +429,8 @@ namespace vke {
             create_info.subresourceRange.baseArrayLayer = 0;
             create_info.subresourceRange.layerCount = 1;
 
-            VkImageView_T* temp_image_views = nullptr;
-            vke::Result result = vkCreateImageView(this->logical_device.get(), &create_info, nullptr, &temp_image_views);
-            swapchain_image_views[index].reset(temp_image_views);
+            vke::Result result = vkCreateImageView(this->logical_device.get(), &create_info, nullptr, reinterpret_cast<VkImageView*>(&swapchain_image_views[index]));
+
             if (!result) {
                 fmt::println("Failed to create image view");
                 VKE_RESULT_CRASH(result);
@@ -520,6 +568,7 @@ namespace vke {
         create_framebuffers();
         create_command_pool();
         create_command_buffer();
+        create_sync_objects();
 
     }
 
@@ -759,4 +808,6 @@ namespace vke {
     void VKEGraphicsPipelineDeleter::operator()(VkPipeline_T* ptr) { vkDestroyPipeline(Instance::logical_device.get(), ptr, nullptr); }
     void VKEFramebufferDeleter::operator()(VkFramebuffer_T* ptr) { vkDestroyFramebuffer(Instance::logical_device.get(), ptr, nullptr); }
     void VKECommandPoolDeleter::operator()(VkCommandPool_T* ptr) { vkDestroyCommandPool(Instance::logical_device.get(), ptr, nullptr); }
+    void VKESemaphoreDeleter::operator()(VkSemaphore_T* ptr) { vkDestroySemaphore(Instance::logical_device.get(), ptr, nullptr); }
+    void VKEFenceDeleter::operator()(VkFence_T* ptr) { vkDestroyFence(Instance::logical_device.get(), ptr, nullptr); }
 }

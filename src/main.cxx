@@ -18,6 +18,7 @@ auto main() -> i32
 
     while (!xwindow.should_close()) {
         xwindow.poll_events();
+        vkeinst.draw_frame();
         if (xwindow.keys.is_pressed(KeyCode::space)) {
             fmt::println("Pressed space");
         }
@@ -49,6 +50,7 @@ auto main() -> i32
         }
 
     }
+    vkDeviceWaitIdle(vkeinst.logical_device.get());
     return 0;
 }
 

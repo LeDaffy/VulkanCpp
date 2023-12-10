@@ -123,6 +123,8 @@ struct VKERenderPassDeleter { void operator()(VkRenderPass_T* ptr); };
 struct VKEGraphicsPipelineDeleter { void operator()(VkPipeline_T* ptr); };
 struct VKEFramebufferDeleter { void operator()(VkFramebuffer_T* ptr); };
 struct VKECommandPoolDeleter { void operator()(VkCommandPool_T* ptr); };
+struct VKESemaphoreDeleter { void operator()(VkSemaphore_T* ptr); };
+struct VKEFenceDeleter { void operator()(VkFence_T* ptr); };
 
 struct QueueFamilyIndices {
     std::optional<u32> graphics_family;
@@ -168,6 +170,10 @@ struct Instance {
     std::unique_ptr<VkCommandPool_T, VKECommandPoolDeleter> command_pool;
     VkCommandBuffer command_buffer;
 
+    std::unique_ptr<VkSemaphore_T, VKESemaphoreDeleter> image_available_semaphore;
+    std::unique_ptr<VkSemaphore_T, VKESemaphoreDeleter> render_finished_semaphore;
+    std::unique_ptr<VkFence_T, VKEFenceDeleter> in_flight_fence;
+
 
 
 
@@ -186,6 +192,8 @@ struct Instance {
     void create_command_pool();
     void create_command_buffer();
     void record_command_buffer(VkCommandBuffer command_buffer, u32 image_index);
+    void draw_frame();
+    void create_sync_objects();
 
     [[nodiscard]] auto check_device_extension_support(VkPhysicalDevice device) const -> bool;
     [[nodiscard]] auto find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices;
