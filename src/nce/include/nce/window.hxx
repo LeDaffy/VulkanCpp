@@ -1,12 +1,16 @@
 #pragma once
+#include <limits>
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
 #include <xcb/xcb_keysyms.h>
 #include <xcb/xcb_atom.h>
+#include <xcb/xcb_icccm.h>
+#include <xcb/xcb_util.h>
 
 #include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-x11.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
+
 
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_xcb.h>
@@ -19,8 +23,12 @@
 #include <nce/non_owning_ptr.hxx>
 #include <nce/log.hxx>
 
+#include <X11/Xutil.h>
+
+
 
 struct XCBConnectionDeleter { void operator()(xcb_connection_t* ptr){ xcb_disconnect(ptr); } };
+struct XCBAtomDeleter { void operator()(xcb_intern_atom_reply_t* ptr){ free(ptr); } };
 struct XCBKeySymDeleter { void operator()(xcb_key_symbols_t* ptr){ xcb_key_symbols_free(ptr); } };
 struct XKBStateDeleter { void operator()(xkb_state* ptr){ xkb_state_unref(ptr); } };
 struct XKBKeyMapDeleter { void operator()(xkb_keymap* ptr){ xkb_keymap_unref(ptr); } };
@@ -37,9 +45,9 @@ struct KeyState {
     bool key_down;
 };
 struct KeyMap {
-    std::unordered_map<KeyCode, KeyState> keys;
-    bool is_pressed(KeyCode code);
-    bool is_down(KeyCode code);
+    std::unordered_map<nce::KeyCode, KeyState> keys;
+    bool is_pressed(nce::KeyCode code);
+    bool is_down(nce::KeyCode code);
 };
 
 namespace window {
@@ -47,20 +55,26 @@ namespace window {
         T x;
         T y;
         WindowVec2() : x(0), y(0) {}
-        WindowVec2(u32 x, u32 y) : x(x), y(y) {}
-        friend std::ostream &operator<<(std::ostream &os, WindowVec2<T>& v) {
-            return os << "[" << v.x << ", " << v.y << "]";
-        }
+        WindowVec2(T x, T y) : x(x), y(y) {}
+    };
+    template<typename T> struct WindowRGB {
+        T r;
+        T g;
+        T b;
+        WindowRGB() : r(0), g(0), b(0) {}
+        WindowRGB(T r, T g, T b) : r(r), g(g), b(b) {}
     };
 
     struct Attributes {
+        WindowRGB<u8> background_color;
         WindowVec2<u32> dimensions;
         WindowVec2<u32> position;
         CStr<u8> name;
+        bool resizable;
         Attributes() :
-            dimensions(640, 480), position(0, 0), name("XCB Window") {}
-        Attributes(WindowVec2<u32> dimensions, WindowVec2<u32> position, CStr<u8> name) :
-            dimensions(dimensions), position(position), name(name) {}
+            background_color(25, 25, 25), dimensions(640, 480), position(0, 0), name("XCB Window"), resizable(false) {}
+        Attributes(WindowRGB<u8> bg_color, WindowVec2<u32> dimensions, WindowVec2<u32> position, CStr<u8> name, bool resizable) :
+            background_color(bg_color), dimensions(dimensions), position(position), name(name), resizable(resizable) {}
     };
 
     struct EventQueue {
@@ -109,14 +123,15 @@ namespace window {
             x_window(x_window),
             kb_state(std::move(kb_state))
         {
-              xcb_change_property (this->x_connection.get(),
-                      XCB_PROP_MODE_REPLACE,
-                      this->x_window,
-                      XCB_ATOM_WM_NAME,
-                      XCB_ATOM_STRING,
-                      8,
-                      this->attributes.name.size(),
-                      this->attributes.name);
+            xcb_change_property (this->x_connection.get(),
+                    XCB_PROP_MODE_REPLACE,
+                    this->x_window,
+                    XCB_ATOM_WM_NAME,
+                    XCB_ATOM_STRING,
+                    8,
+                    this->attributes.name.size(),
+                    this->attributes.name);
+
 
         }
     };
@@ -125,6 +140,14 @@ namespace window {
         WindowBuilder() {};
         auto with_dimensions(u32 x, u32 y) -> WindowBuilder& {
             attributes.dimensions = WindowVec2<u32>(x, y);
+            return *this;
+        }
+        auto with_bg_color(u8 r, u8 g, u8 b) -> WindowBuilder& {
+            attributes.background_color = WindowRGB<u8>(r, g, b);
+            return *this;
+        }
+        auto with_resizable(bool resizable) -> WindowBuilder& {
+            attributes.resizable = resizable;
             return *this;
         }
         auto with_position(u32 x, u32 y) -> WindowBuilder& {
@@ -138,6 +161,13 @@ namespace window {
         [[nodiscard]] auto build() -> Window {
             /* Open the connection to the X server */
             std::unique_ptr<xcb_connection_t, XCBConnectionDeleter> x_connection(xcb_connect (nullptr, nullptr));
+
+            // Conncet to WM
+            std::string WM_PROTOCOLS_PROPERTY_NAME = "WM_PROTOCOLS";
+            xcb_intern_atom_cookie_t intern_atom_cookie = xcb_intern_atom(x_connection.get(), true, WM_PROTOCOLS_PROPERTY_NAME.size(),
+                    WM_PROTOCOLS_PROPERTY_NAME.c_str());
+            std::unique_ptr<xcb_intern_atom_reply_t, XCBAtomDeleter> intern_atom_reply(xcb_intern_atom_reply(x_connection.get(), intern_atom_cookie, NULL));
+            xcb_atom_t window_manager_protocols_property = intern_atom_reply->atom;
 
             // keyboard setup
             std::unique_ptr<xkb_context, XKBContextDeleter> kb_context(xkb_context_new(XKB_CONTEXT_NO_FLAGS));
@@ -163,45 +193,63 @@ namespace window {
             xcb_window_t window = xcb_generate_id(x_connection.get());
 
 
-            xcb_cw_t event_mask = XCB_CW_EVENT_MASK;
-            const i32 event_valwin[] = { XCB_EVENT_MASK_KEY_PRESS
-                | XCB_EVENT_MASK_KEY_RELEASE
-                    | XCB_EVENT_MASK_BUTTON_PRESS
-                    | XCB_EVENT_MASK_BUTTON_RELEASE
-                    | XCB_EVENT_MASK_ENTER_WINDOW
-                    | XCB_EVENT_MASK_LEAVE_WINDOW
-                    | XCB_EVENT_MASK_POINTER_MOTION
-                    | XCB_EVENT_MASK_POINTER_MOTION_HINT
-                    | XCB_EVENT_MASK_BUTTON_1_MOTION
-                    | XCB_EVENT_MASK_BUTTON_2_MOTION
-                    | XCB_EVENT_MASK_BUTTON_3_MOTION
-                    | XCB_EVENT_MASK_BUTTON_4_MOTION
-                    | XCB_EVENT_MASK_BUTTON_5_MOTION
-                    | XCB_EVENT_MASK_BUTTON_MOTION
-                    | XCB_EVENT_MASK_KEYMAP_STATE
-                    | XCB_EVENT_MASK_EXPOSURE
-                    | XCB_EVENT_MASK_VISIBILITY_CHANGE
-                    | XCB_EVENT_MASK_STRUCTURE_NOTIFY
-                    | XCB_EVENT_MASK_RESIZE_REDIRECT
-                    | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY
-                    | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
-                    | XCB_EVENT_MASK_FOCUS_CHANGE
-                    | XCB_EVENT_MASK_PROPERTY_CHANGE
-                    | XCB_EVENT_MASK_COLOR_MAP_CHANGE
-                    | XCB_EVENT_MASK_OWNER_GRAB_BUTTON
-            };
+            u32 event_mask = XCB_CW_EVENT_MASK | XCB_CW_BACK_PIXEL;
 
-            xcb_create_window(x_connection.get(),            // Connection          
-                    XCB_COPY_FROM_PARENT,          // depth (same as root)
-                    window,                        // window Id           
-                    x_screen->root,                // parent window       
-                    0, 0,                          // x, y                
-                    attributes.dimensions.x, attributes.dimensions.y,                      // width, height       
-                    0,                            // border_width        
-                    XCB_WINDOW_CLASS_INPUT_OUTPUT, // class               
-                    x_screen->root_visual,         // visual              
-                    event_mask, 
-                    reinterpret_cast<const void*>(event_valwin) );
+
+            xcb_create_window_value_list_t value_window = {};
+            value_window.background_pixel = attributes.background_color.b << 16 
+                | attributes.background_color.g << 8  
+                | attributes.background_color.b << 0 
+                | 255 << 24;
+
+            value_window.event_mask = XCB_EVENT_MASK_KEY_PRESS
+                | XCB_EVENT_MASK_KEY_RELEASE
+                | XCB_EVENT_MASK_BUTTON_PRESS
+                | XCB_EVENT_MASK_BUTTON_RELEASE
+                | XCB_EVENT_MASK_ENTER_WINDOW
+                | XCB_EVENT_MASK_LEAVE_WINDOW
+                | XCB_EVENT_MASK_POINTER_MOTION
+                | XCB_EVENT_MASK_POINTER_MOTION_HINT
+                | XCB_EVENT_MASK_BUTTON_1_MOTION
+                | XCB_EVENT_MASK_BUTTON_2_MOTION
+                | XCB_EVENT_MASK_BUTTON_3_MOTION
+                | XCB_EVENT_MASK_BUTTON_4_MOTION
+                | XCB_EVENT_MASK_BUTTON_5_MOTION
+                | XCB_EVENT_MASK_BUTTON_MOTION
+                | XCB_EVENT_MASK_KEYMAP_STATE
+                | XCB_EVENT_MASK_EXPOSURE
+                | XCB_EVENT_MASK_VISIBILITY_CHANGE
+                | XCB_EVENT_MASK_STRUCTURE_NOTIFY
+                | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY
+                | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT
+                | XCB_EVENT_MASK_FOCUS_CHANGE
+                | XCB_EVENT_MASK_PROPERTY_CHANGE
+                | XCB_EVENT_MASK_COLOR_MAP_CHANGE
+                | XCB_EVENT_MASK_OWNER_GRAB_BUTTON;
+            if (!attributes.resizable) {
+                value_window.event_mask |= XCB_EVENT_MASK_RESIZE_REDIRECT;
+            }
+
+            xcb_create_window_aux(x_connection.get(),
+                    x_screen->root_depth,
+                    window,
+                    x_screen->root,
+                    0, 0, 1280, 720,
+                    0,
+                    XCB_WINDOW_CLASS_INPUT_OUTPUT,
+                    x_screen->root_visual,
+                    XCB_CW_EVENT_MASK | XCB_CW_BACK_PIXEL, 
+                    &value_window);
+
+            fmt::println("Resizable is {}", attributes.resizable);
+            if (!attributes.resizable) {
+                xcb_size_hints_t window_size_hints{};
+                xcb_icccm_size_hints_set_min_size(&window_size_hints, attributes.dimensions.x, attributes.dimensions.y);
+                xcb_icccm_size_hints_set_max_size(&window_size_hints, attributes.dimensions.x, attributes.dimensions.y);
+
+                xcb_icccm_set_wm_size_hints(x_connection.get(), window, XCB_ATOM_WM_NORMAL_HINTS, &window_size_hints);
+            }
+
             /* Map the window on the screen */
             xcb_map_window(x_connection.get(), window);
             xcb_flush(x_connection.get());

@@ -13,6 +13,7 @@ target_link_libraries(nce
     X11::xcb_keysyms
     X11::xkbcommon
     X11::xkbcommon_X11
+    X11::xcb_icccm
     )
 target_precompile_headers(nce
     PUBLIC
