@@ -41,6 +41,7 @@ struct Result {
 
     bool operator!=(VkResult& r) { return result != r; }
     bool operator!=(VkResult&& r) { return result != std::move(r); }
+    operator bool() const { return result == VK_SUCCESS; }
 
 
     operator CString() const {
@@ -148,6 +149,8 @@ struct Instance {
     constexpr static std::array<CString, 1> validation_layers = { "VK_LAYER_KHRONOS_validation" };
     constexpr static std::array<CString, 2> extensions = { "VK_KHR_surface", "VK_KHR_xcb_surface" };
     constexpr static std::array<CString, 1> device_extensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
+    constexpr static u32 MAX_FRAMES_IN_FLIGHT = 2;
+
 
     //members
     VkApplicationInfo info_app; ///< Properties of the vulkan application
@@ -168,18 +171,21 @@ struct Instance {
     std::unique_ptr<VkPipeline_T, VKEGraphicsPipelineDeleter> graphics_pipeline;
     std::vector<std::unique_ptr<VkFramebuffer_T, VKEFramebufferDeleter>> swapchain_framebuffers;
     std::unique_ptr<VkCommandPool_T, VKECommandPoolDeleter> command_pool;
-    VkCommandBuffer command_buffer;
+    std::vector<VkCommandBuffer> command_buffers;
 
-    std::unique_ptr<VkSemaphore_T, VKESemaphoreDeleter> image_available_semaphore;
-    std::unique_ptr<VkSemaphore_T, VKESemaphoreDeleter> render_finished_semaphore;
-    std::unique_ptr<VkFence_T, VKEFenceDeleter> in_flight_fence;
+    std::vector<std::unique_ptr<VkSemaphore_T, VKESemaphoreDeleter>> image_available_semaphores;
+    std::vector<std::unique_ptr<VkSemaphore_T, VKESemaphoreDeleter>> render_finished_semaphores;
+    std::vector<std::unique_ptr<VkFence_T, VKEFenceDeleter>> in_flight_fences;
+    u32 current_frame = 0;
+    bool frame_buffer_resized = false;
+    const window::Window& window;
 
 
 
 
     /// @brief Creates an Instance.
     /// Itializes Vulkan, selects a physical devices
-    Instance(const window::Window& window);
+    Instance(window::Window& window);
     void create_instance();
     void create_surface(const window::Window& window);
     void pick_physical_device();
@@ -190,10 +196,11 @@ struct Instance {
     void create_graphics_pipeline();
     void create_framebuffers();
     void create_command_pool();
-    void create_command_buffer();
+    void create_command_buffers();
     void record_command_buffer(VkCommandBuffer command_buffer, u32 image_index);
     void draw_frame();
     void create_sync_objects();
+    void recreate_swapchain();
 
     [[nodiscard]] auto check_device_extension_support(VkPhysicalDevice device) const -> bool;
     [[nodiscard]] auto find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices;

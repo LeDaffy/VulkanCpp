@@ -33,29 +33,47 @@ namespace vke {
 
     // function definitions
     void Instance::draw_frame() {
-        vkWaitForFences(logical_device.get(), 1, reinterpret_cast<const VkFence*>(&in_flight_fence), VK_TRUE, UINT64_MAX);
-        vkResetFences(logical_device.get(), 1, reinterpret_cast<const VkFence*>(&in_flight_fence));
+        vkWaitForFences(logical_device.get(), 1, 
+                reinterpret_cast<const VkFence*>(&in_flight_fences[current_frame]),
+                VK_TRUE, UINT64_MAX);
 
         u32 image_index;
-        vkAcquireNextImageKHR(logical_device.get(), swapchain.get(), UINT64_MAX, image_available_semaphore.get(), VK_NULL_HANDLE, &image_index);
+        vke::Result result = vkAcquireNextImageKHR(logical_device.get(),
+                swapchain.get(), UINT64_MAX,
+                image_available_semaphores[current_frame].get(), 
+                VK_NULL_HANDLE, &image_index);
 
-        vkResetCommandBuffer(command_buffer, 0);
-        record_command_buffer(command_buffer, image_index);
+        if (result == VK_ERROR_OUT_OF_DATE_KHR 
+         || result == VK_SUBOPTIMAL_KHR 
+         || frame_buffer_resized) {
+            frame_buffer_resized = false;
+            recreate_swapchain();
+            return;
+        } else if (result != VK_SUCCESS) {
+            VKE_RESULT_CRASH(result);
+        }
+
+        vkResetFences(logical_device.get(), 1, 
+                reinterpret_cast<const VkFence*>(&in_flight_fences[current_frame]));
+
+
+        vkResetCommandBuffer(command_buffers[current_frame], 0);
+        record_command_buffer(command_buffers[current_frame], image_index);
 
         VkSubmitInfo submit_info{};
         submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-        VkSemaphore wait_semaphores[] = {image_available_semaphore.get()};
+        VkSemaphore wait_semaphores[] = {image_available_semaphores[current_frame].get()};
         VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
         submit_info.waitSemaphoreCount = 1;
         submit_info.pWaitSemaphores = wait_semaphores;
         submit_info.pWaitDstStageMask = wait_stages;
         submit_info.commandBufferCount = 1;
-        submit_info.pCommandBuffers = &command_buffer;
-        VkSemaphore signal_semaphores[] = {render_finished_semaphore.get()};
+        submit_info.pCommandBuffers = &command_buffers[current_frame];
+        VkSemaphore signal_semaphores[] = {render_finished_semaphores[current_frame].get()};
         submit_info.signalSemaphoreCount = 1;
         submit_info.pSignalSemaphores = signal_semaphores;
-        vke::Result result = vkQueueSubmit(graphics_queue, 1, &submit_info, in_flight_fence.get());
+        result = vkQueueSubmit(graphics_queue, 1, &submit_info, in_flight_fences[current_frame].get());
         VKE_RESULT_CRASH(result);
 
         VkPresentInfoKHR present_info{};
@@ -69,21 +87,37 @@ namespace vke {
         present_info.pImageIndices = &image_index;
         vkQueuePresentKHR(present_queue, &present_info);
 
+        if (result == VK_ERROR_OUT_OF_DATE_KHR
+         || result == VK_SUBOPTIMAL_KHR 
+         || frame_buffer_resized) {
+            frame_buffer_resized = false;
+            recreate_swapchain();
+        } else if (result != VK_SUCCESS) {
+            VKE_RESULT_CRASH(result);
+        }
 
-
+        current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
     }
     void Instance::create_sync_objects() {
+        image_available_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
+        render_finished_semaphores.resize(MAX_FRAMES_IN_FLIGHT);
+        in_flight_fences.resize(MAX_FRAMES_IN_FLIGHT);
+
         VkSemaphoreCreateInfo semaphore_info{};
         semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
         VkFenceCreateInfo fence_info{};
         fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-        vke::Result result =  vkCreateSemaphore(logical_device.get(), &semaphore_info, nullptr, reinterpret_cast<VkSemaphore*>(&image_available_semaphore));
-        VKE_RESULT_CRASH(result);
-        result = vkCreateSemaphore(logical_device.get(), &semaphore_info, nullptr, reinterpret_cast<VkSemaphore*>(&render_finished_semaphore));
-        VKE_RESULT_CRASH(result);
-        result = vkCreateFence(logical_device.get(), &fence_info, nullptr, reinterpret_cast<VkFence*>(&in_flight_fence));
-        VKE_RESULT_CRASH(result);
+
+        for (const auto& [image_available_semaphore, render_finished_semaphore, in_flight_fence] : std::views::zip(image_available_semaphores, render_finished_semaphores, in_flight_fences)) {
+            vke::Result result =  vkCreateSemaphore(logical_device.get(), &semaphore_info, nullptr, reinterpret_cast<VkSemaphore*>(&image_available_semaphore));
+            VKE_RESULT_CRASH(result);
+            result = vkCreateSemaphore(logical_device.get(), &semaphore_info, nullptr, reinterpret_cast<VkSemaphore*>(&render_finished_semaphore));
+            VKE_RESULT_CRASH(result);
+            result = vkCreateFence(logical_device.get(), &fence_info, nullptr, reinterpret_cast<VkFence*>(&in_flight_fence));
+            VKE_RESULT_CRASH(result);
+        }
     }
     void Instance::record_command_buffer(VkCommandBuffer command_buffer, u32 image_index) {
         VkCommandBufferBeginInfo begin_info{};
@@ -127,16 +161,18 @@ namespace vke {
         VKE_RESULT_CRASH(result);
         // "failed to record command buffer!"
     }
-    void Instance::create_command_buffer() {
+    void Instance::create_command_buffers() {
+        command_buffers.resize(MAX_FRAMES_IN_FLIGHT);
         VkCommandBufferAllocateInfo alloc_info{};
         alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         alloc_info.commandPool = command_pool.get();
         alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        alloc_info.commandBufferCount = 1;
+        alloc_info.commandBufferCount = command_buffers.size();
 
-        if (vkAllocateCommandBuffers(logical_device.get(), &alloc_info, &command_buffer) != VK_SUCCESS) {
+        vke::Result result = vkAllocateCommandBuffers(logical_device.get(), &alloc_info, command_buffers.data());
+        if (!result) {
             fmt::println("failed to allocate command buffers!");
-            std::abort();
+            VKE_RESULT_CRASH(result);
         }
 
     }
@@ -399,7 +435,7 @@ namespace vke {
 
         create_info.presentMode = present_mode;
         create_info.clipped = VK_TRUE;
-        create_info.oldSwapchain = VK_NULL_HANDLE;
+        create_info.oldSwapchain = swapchain.get();
         vke::Result result =  vkCreateSwapchainKHR(logical_device.get(), &create_info, nullptr, reinterpret_cast<VkSwapchainKHR*>(&swapchain));
         VKE_RESULT_CRASH(result);
         auto x = VK_SUCCESS;
@@ -536,7 +572,7 @@ namespace vke {
         fmt::println("Selected Vulkan device: {}", device_properties.deviceName);
 
     }
-    Instance::Instance(const window::Window& window) : 
+    Instance::Instance(window::Window& window) : 
         info_app({
                 VK_STRUCTURE_TYPE_APPLICATION_INFO, // VkStructureType    sType;
                 nullptr,                            // const void* pNext;
@@ -555,23 +591,41 @@ namespace vke {
                 nullptr,                                // const char* const* ppEnabledLayerNames;
                 this->extensions.size(),                      // uint32_t enabledExtensionCount;
                 this->extensions.data()                       // const char* const* ppEnabledExtensionNames;
-                })
-    {
-        create_instance();
-        create_surface(window);
-        pick_physical_device();
-        create_logical_device();
+                }),
+        swapchain(nullptr),
+        window(window)
+        {
+            window.user_data_ptr = this;
+            create_instance();
+            create_surface(window);
+            pick_physical_device();
+            create_logical_device();
+            create_swapchain();
+            create_image_views();
+            create_render_pass();
+            create_graphics_pipeline();
+            create_framebuffers();
+            create_command_pool();
+            create_command_buffers();
+            create_sync_objects();
+
+        }
+
+    void Instance::recreate_swapchain() {
+        int width = 0, height = 0;
+        width = window.attributes.dimensions.x;
+        height = window.attributes.dimensions.y;
+        while (width == 0 || height == 0) {
+            width = window.attributes.dimensions.x;
+            height = window.attributes.dimensions.y;
+        }
+
+        vkDeviceWaitIdle(logical_device.get());
+
         create_swapchain();
         create_image_views();
-        create_render_pass();
-        create_graphics_pipeline();
         create_framebuffers();
-        create_command_pool();
-        create_command_buffer();
-        create_sync_objects();
-
     }
-
     void Instance::create_logical_device() {
         // Specifying the queues to be created
         QueueFamilyIndices indices = find_queue_families(this->physical_device);
@@ -738,8 +792,9 @@ namespace vke {
         if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
             return capabilities.currentExtent;
         } else {
-            u32 width = 1280;
-            u32 height = 720;
+            u32 width = window.attributes.dimensions.x;
+            u32 height = window.attributes.dimensions.y;
+            fmt::println(" Window swap extent size [{}, {}]", width, height);
 
             VkExtent2D actualExtent = { width, height };
 

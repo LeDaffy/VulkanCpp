@@ -76,9 +76,18 @@ void Window::poll_events() {
                                 break;
                             }
         case XCB_EXPOSE: {
+            keys.invalidate();
+            std::unique_ptr<xkb_state, XKBStateDeleter> kb_state_temp(xkb_x11_state_new_from_device(keymap.get(), x_connection.get(), kb_device_id));
+            kb_state.swap(kb_state_temp);
+
             NonOwningPtr<xcb_expose_event_t> event = reinterpret_cast<xcb_expose_event_t*>(event_queue.next.get());
             if(event->window == this->x_window) {
                 printf("EXPOSE: Rect(%i, %i, %i, %i)\n", event->x, event->y, event->width, event->height);
+                attributes.dimensions.x = event->width;
+                attributes.dimensions.y = event->height;
+                attributes.position.x = event->x;
+                attributes.position.y = event->y;
+                resize_callback(event->width, event->height, user_data_ptr);
             }
         } break;
     }

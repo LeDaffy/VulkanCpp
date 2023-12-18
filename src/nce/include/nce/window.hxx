@@ -39,15 +39,18 @@ struct KeyPressQueue {
 
     KeyPressQueue() : prev(false), curr(false) {}
     void push(bool e) { std::swap(prev, curr); curr = e; }
+    void invalidate() { prev = false; curr = false; }
 };
 struct KeyState {
     KeyPressQueue pressed;
     bool key_down;
+    void invalidate() { pressed.invalidate(); key_down = false; }
 };
 struct KeyMap {
     std::unordered_map<nce::KeyCode, KeyState> keys;
     bool is_pressed(nce::KeyCode code);
     bool is_down(nce::KeyCode code);
+    void invalidate() { for (auto& e : keys) { e.second.invalidate(); } };
 };
 
 namespace window {
@@ -97,6 +100,11 @@ namespace window {
         std::unique_ptr<xkb_state, XKBStateDeleter> kb_state;
         EventQueue event_queue;
         KeyMap keys;
+        std::function<void(u32 width, u32 height, void* user_data)> resize_callback = nullptr;
+        void* user_data_ptr = nullptr;
+
+        i32 kb_device_id;
+        std::unique_ptr<xkb_keymap, XKBKeyMapDeleter> keymap;
 
         ~Window() = default;
         // Move Constructor
@@ -118,10 +126,13 @@ namespace window {
         }
         private:
         Window() {}
-        Window(Attributes attributes, std::unique_ptr<xcb_connection_t, XCBConnectionDeleter>&& x_connection, xcb_window_t x_window, std::unique_ptr<xkb_state, XKBStateDeleter>&& kb_state) 
+        Window(Attributes attributes, std::unique_ptr<xcb_connection_t, XCBConnectionDeleter>&& x_connection, xcb_window_t x_window, std::unique_ptr<xkb_state, XKBStateDeleter>&& kb_state, std::function<void(u32 width, u32 height, void* user_data)> resize_callback, i32 kb_device_id, xkb_keymap* keymap)
             : attributes(attributes), x_connection(std::move(x_connection)), 
             x_window(x_window),
-            kb_state(std::move(kb_state))
+            kb_state(std::move(kb_state)),
+            resize_callback(resize_callback),
+            kb_device_id(kb_device_id),
+            keymap(keymap)
         {
             xcb_change_property (this->x_connection.get(),
                     XCB_PROP_MODE_REPLACE,
@@ -137,6 +148,7 @@ namespace window {
     };
     struct WindowBuilder {
         Attributes attributes;
+        std::function<void(u32 width, u32 height, void* user_data)> resize_callback = nullptr;
         WindowBuilder() {};
         auto with_dimensions(u32 x, u32 y) -> WindowBuilder& {
             attributes.dimensions = WindowVec2<u32>(x, y);
@@ -156,6 +168,10 @@ namespace window {
         }
         auto with_name(CString name) -> WindowBuilder& {
             attributes.name = name;
+            return *this;
+        }
+        auto with_resize_callback(std::function<void(u32 width, u32 height, void* user_data)> resize_callback) -> WindowBuilder& {
+            this->resize_callback = resize_callback;
             return *this;
         }
         [[nodiscard]] auto build() -> Window {
@@ -178,13 +194,13 @@ namespace window {
             i32 kb_device_id = xkb_x11_get_core_keyboard_device_id(x_connection.get());
             if (kb_device_id == -1) { LOGERROR("Couldn't get kb device id"); std::abort(); }
 
-            std::unique_ptr<xkb_keymap, XKBKeyMapDeleter> keymap(xkb_x11_keymap_new_from_device(kb_context.get(), x_connection.get(), kb_device_id, XKB_KEYMAP_COMPILE_NO_FLAGS));
+            xkb_keymap* keymap = xkb_x11_keymap_new_from_device(kb_context.get(), x_connection.get(), kb_device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
             if (!keymap) { LOGERROR("Couldn't get kb device id"); std::abort(); }
 
 
             xkb_x11_keymap_new_from_device(kb_context.get(), x_connection.get(), kb_device_id,  (xkb_keymap_compile_flags)0);
 
-            std::unique_ptr<xkb_state, XKBStateDeleter> kb_state(xkb_x11_state_new_from_device(keymap.get(), x_connection.get(), kb_device_id));
+            std::unique_ptr<xkb_state, XKBStateDeleter> kb_state(xkb_x11_state_new_from_device(keymap, x_connection.get(), kb_device_id));
             if (!kb_state) { LOGERROR("Couldn't get kb device id"); std::abort(); }
 
             NonOwningPtr<const xcb_setup_t> x_setup = xcb_get_setup(x_connection.get());
@@ -255,8 +271,7 @@ namespace window {
             xcb_flush(x_connection.get());
 
 
-            return Window(attributes, std::move(x_connection), window, std::move(kb_state));
+            return Window(attributes, std::move(x_connection), window, std::move(kb_state), resize_callback, kb_device_id, keymap);
         }
-        private:
     };
 }
