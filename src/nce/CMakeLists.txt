@@ -8,6 +8,7 @@ target_sources(nce
 target_include_directories(nce PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 target_link_libraries(nce 
+    Vulkan::Vulkan
     fmt
     X11::xcb 
     X11::xcb_keysyms

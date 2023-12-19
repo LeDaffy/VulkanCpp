@@ -1,10 +1,12 @@
 #include <vulkan/vulkan_core.h>
+
 #include <xcb/xcb.h>
 #include <xcb/xproto.h>
 #include <xcb/xcb_keysyms.h>
 
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_xcb.h>
+#include <glm/glm.hpp>
 
 #include <nce/vke_macro.hxx>
 
@@ -13,6 +15,7 @@
 #include <nce/carray.hxx>
 #include <nce/log.hxx>
 #include <nce/window.hxx>
+#include <nce/vertex.hxx>
 
 namespace vke {
 #ifndef NDEBUG
@@ -103,6 +106,7 @@ struct Result {
             //case VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS: return "VK_ERROR_INVALID_OPAQUE_CAPTURE_ADDRESS_KHR"; break;
             //case VK_PIPELINE_COMPILE_REQUIRED: return "VK_PIPELINE_COMPILE_REQUIRED_EXT"; break;
             //case VK_PIPELINE_COMPILE_REQUIRED: return "VK_ERROR_PIPELINE_COMPILE_REQUIRED_EXT"; break;
+            case VK_ERROR_INVALID_VIDEO_STD_PARAMETERS_KHR: return "VK_ERROR_INVALID_VIDEO_STD_PARAMETERS_KHR"; break;
             case VK_RESULT_MAX_ENUM: return "VK_RESULT_MAX_ENUM"; break;
         }
         return "Not Implemented";
@@ -126,12 +130,14 @@ struct VKEFramebufferDeleter { void operator()(VkFramebuffer_T* ptr); };
 struct VKECommandPoolDeleter { void operator()(VkCommandPool_T* ptr); };
 struct VKESemaphoreDeleter { void operator()(VkSemaphore_T* ptr); };
 struct VKEFenceDeleter { void operator()(VkFence_T* ptr); };
+struct VKEBufferDeleter { void operator()(VkBuffer_T* ptr); };
+struct VKEMemoryDeleter { void operator()(VkDeviceMemory_T* ptr); };
 
 struct QueueFamilyIndices {
     std::optional<u32> graphics_family;
     std::optional<u32> present_family;
     auto has_value() -> bool { return graphics_family.has_value() && present_family.has_value(); }
-    auto has_value() const -> const bool { return graphics_family.has_value() && present_family.has_value(); }
+    auto has_value() const -> bool { return graphics_family.has_value() && present_family.has_value(); }
 };
 
 struct SwapChainSupportDetails {
@@ -179,6 +185,13 @@ struct Instance {
     u32 current_frame = 0;
     bool frame_buffer_resized = false;
     const window::Window& window;
+    const std::vector<Vertex> vertices = {
+        {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+    };
+    std::unique_ptr<VkBuffer_T, VKEBufferDeleter> vertex_buffer;
+    std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter> vertex_buffer_memory;
 
 
 
@@ -200,8 +213,10 @@ struct Instance {
     void record_command_buffer(VkCommandBuffer command_buffer, u32 image_index);
     void draw_frame();
     void create_sync_objects();
+    void create_vertex_buffer();
     void recreate_swapchain();
 
+    [[nodiscard]] auto find_memory_type(u32 type_filter, VkMemoryPropertyFlags properties) const -> u32;
     [[nodiscard]] auto check_device_extension_support(VkPhysicalDevice device) const -> bool;
     [[nodiscard]] auto find_queue_families(VkPhysicalDevice device) -> QueueFamilyIndices;
     /// @brief Rate GPUs based on needed features

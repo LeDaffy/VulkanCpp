@@ -32,6 +32,53 @@ namespace vke {
     std::unique_ptr<VkDevice_T, VKEDeviceDeleter> Instance::logical_device = nullptr;
 
     // function definitions
+    auto Instance::find_memory_type(u32 type_filter, VkMemoryPropertyFlags properties) const -> u32 {
+        VkPhysicalDeviceMemoryProperties mem_properties;
+        vkGetPhysicalDeviceMemoryProperties(physical_device, &mem_properties);
+
+        for (uint32_t i = 0; i < mem_properties.memoryTypeCount; i++) {
+            if ((type_filter & (1 << i)) && (mem_properties.memoryTypes[i].propertyFlags & properties) == properties) {
+                return i;
+            }
+        }
+
+        fmt::println("failed to find suitable memory type!");
+        std::abort();
+
+    }
+    void Instance::create_vertex_buffer() {
+        VkBufferCreateInfo buffer_info{};
+        buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        buffer_info.size = sizeof(vertices[0]) * vertices.size();
+        buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        vertex_buffer.reset(nullptr);
+        vke::Result result = vkCreateBuffer(logical_device.get(), &buffer_info, nullptr, reinterpret_cast<VkBuffer*>(&vertex_buffer));
+        VKE_RESULT_CRASH(result);
+
+        VkMemoryRequirements mem_requirements;
+        vkGetBufferMemoryRequirements(logical_device.get(), vertex_buffer.get(), &mem_requirements);
+
+        VkMemoryAllocateInfo alloc_info{};
+        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        alloc_info.allocationSize = mem_requirements.size;
+        alloc_info.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+        vertex_buffer_memory.reset(nullptr);
+        result = vkAllocateMemory(logical_device.get(), &alloc_info, nullptr, reinterpret_cast<VkDeviceMemory*>(&vertex_buffer_memory));
+        if (result != VK_SUCCESS) {
+            fmt::println("failed to allocate vertex buffer memory!");
+            VKE_RESULT_CRASH(result);
+        }
+        vkBindBufferMemory(logical_device.get(), vertex_buffer.get(), vertex_buffer_memory.get(), 0);
+
+        void* data;
+        vkMapMemory(logical_device.get(), vertex_buffer_memory.get(), 0, buffer_info.size, 0, &data); {
+            memcpy(data, vertices.data(), static_cast<size_t>(buffer_info.size));
+        } vkUnmapMemory(logical_device.get(), vertex_buffer_memory.get());
+    }
+
     void Instance::draw_frame() {
         vkWaitForFences(logical_device.get(), 1, 
                 reinterpret_cast<const VkFence*>(&in_flight_fences[current_frame]),
@@ -86,8 +133,8 @@ namespace vke {
         vkQueuePresentKHR(present_queue, &present_info);
 
         if (result == VK_ERROR_OUT_OF_DATE_KHR
-         || result == VK_SUBOPTIMAL_KHR 
-         || frame_buffer_resized) {
+                || result == VK_SUBOPTIMAL_KHR 
+                || frame_buffer_resized) {
             frame_buffer_resized = false;
             recreate_swapchain();
         } else if (result != VK_SUCCESS) {
@@ -138,26 +185,37 @@ namespace vke {
         render_pass_info.pClearValues = &clear_color;
 
         vkCmdBeginRenderPass(command_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
-        vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline.get());
+        {
+            vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphics_pipeline.get());
 
-        VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = static_cast<f32>(swapchain_extent.width);
-        viewport.height = static_cast<f32>(swapchain_extent.height);
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-        vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+            VkViewport viewport{};
+            viewport.x = 0.0f;
+            viewport.y = 0.0f;
+            viewport.width = static_cast<f32>(swapchain_extent.width);
+            viewport.height = static_cast<f32>(swapchain_extent.height);
+            viewport.minDepth = 0.0f;
+            viewport.maxDepth = 1.0f;
+            vkCmdSetViewport(command_buffer, 0, 1, &viewport);
 
-        VkRect2D scissor{};
-        scissor.offset = {0, 0};
-        scissor.extent = swapchain_extent;
-        vkCmdSetScissor(command_buffer, 0, 1, &scissor);
-        vkCmdDraw(command_buffer, 3, 1, 0, 0);
+            VkRect2D scissor{};
+            scissor.offset = {0, 0};
+            scissor.extent = swapchain_extent;
+            vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+
+            VkBuffer vertex_buffers[] = {vertex_buffer.get()};
+            VkDeviceSize offsets[] = {0};
+            vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
+
+            vkCmdDraw(command_buffer, static_cast<u32>(vertices.size()), 1, 0, 0);
+
+        }
         vkCmdEndRenderPass(command_buffer);
         result = vkEndCommandBuffer(command_buffer);
         VKE_RESULT_CRASH(result);
         // "failed to record command buffer!"
+
+
+
     }
     void Instance::create_command_buffers() {
         command_buffers.resize(MAX_FRAMES_IN_FLIGHT);
@@ -282,10 +340,13 @@ namespace vke {
 
         VkPipelineVertexInputStateCreateInfo vertex_input_info{};
         vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertex_input_info.vertexBindingDescriptionCount = 0;
-        vertex_input_info.pVertexBindingDescriptions = nullptr; // Optional
-        vertex_input_info.vertexAttributeDescriptionCount = 0;
-        vertex_input_info.pVertexAttributeDescriptions = nullptr; // Optional
+        auto binding_description = Vertex::get_binding_description();
+        auto attribute_descriptions = Vertex::get_attribute_desc();
+        vertex_input_info.vertexBindingDescriptionCount = 1;
+        vertex_input_info.vertexAttributeDescriptionCount = attribute_descriptions.size();
+        vertex_input_info.pVertexBindingDescriptions = &binding_description;
+        vertex_input_info.pVertexAttributeDescriptions = attribute_descriptions.data(); 
+
 
         VkPipelineInputAssemblyStateCreateInfo input_assembly{};
         input_assembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -439,7 +500,6 @@ namespace vke {
         vke::Result result =  vkCreateSwapchainKHR(logical_device.get(), &create_info, nullptr, reinterpret_cast<VkSwapchainKHR*>(&swapchain_temp));
         swapchain.swap(swapchain_temp);
         VKE_RESULT_CRASH(result);
-        auto x = VK_SUCCESS;
 
 
         vkGetSwapchainImagesKHR(this->logical_device.get(), this->swapchain.get(), &image_count, nullptr);
@@ -608,6 +668,7 @@ namespace vke {
             create_graphics_pipeline();
             create_framebuffers();
             create_command_pool();
+            create_vertex_buffer();
             create_command_buffers();
             create_sync_objects();
 
@@ -867,4 +928,6 @@ namespace vke {
     void VKECommandPoolDeleter::operator()(VkCommandPool_T* ptr) { vkDestroyCommandPool(Instance::logical_device.get(), ptr, nullptr); }
     void VKESemaphoreDeleter::operator()(VkSemaphore_T* ptr) { vkDestroySemaphore(Instance::logical_device.get(), ptr, nullptr); }
     void VKEFenceDeleter::operator()(VkFence_T* ptr) { vkDestroyFence(Instance::logical_device.get(), ptr, nullptr); }
+    void VKEBufferDeleter::operator()(VkBuffer_T* ptr) { vkDestroyBuffer(Instance::logical_device.get(), ptr, nullptr); }
+    void VKEMemoryDeleter::operator()(VkDeviceMemory_T* ptr) { vkFreeMemory(Instance::logical_device.get(), ptr, nullptr); }
 }

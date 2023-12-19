@@ -19,3 +19,5 @@ add_custom_command(TARGET ncad
 add_subdirectory(src)
 
 target_link_libraries(ncad nce Vulkan::Vulkan fmt)
+target_compile_options(ncad PRIVATE -Wall -Wextra -Wpedantic -Werror)
+target_compile_options(nce PRIVATE -Wall -Wextra -Wpedantic -Werror)

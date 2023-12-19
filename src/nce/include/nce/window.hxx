@@ -183,7 +183,7 @@ namespace window {
             xcb_intern_atom_cookie_t intern_atom_cookie = xcb_intern_atom(x_connection.get(), true, WM_PROTOCOLS_PROPERTY_NAME.size(),
                     WM_PROTOCOLS_PROPERTY_NAME.c_str());
             std::unique_ptr<xcb_intern_atom_reply_t, XCBAtomDeleter> intern_atom_reply(xcb_intern_atom_reply(x_connection.get(), intern_atom_cookie, NULL));
-            xcb_atom_t window_manager_protocols_property = intern_atom_reply->atom;
+            // [unused var] xcb_atom_t window_manager_protocols_property = intern_atom_reply->atom;
 
             // keyboard setup
             std::unique_ptr<xkb_context, XKBContextDeleter> kb_context(xkb_context_new(XKB_CONTEXT_NO_FLAGS));
@@ -209,7 +209,6 @@ namespace window {
             xcb_window_t window = xcb_generate_id(x_connection.get());
 
 
-            u32 event_mask = XCB_CW_EVENT_MASK | XCB_CW_BACK_PIXEL;
 
 
             xcb_create_window_value_list_t value_window = {};

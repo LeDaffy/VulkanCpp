@@ -68,11 +68,11 @@ void Window::poll_events() {
                                 break;
                             }
         case XCB_BUTTON_PRESS: {
-                                NonOwningPtr<xcb_button_press_event_t> event = reinterpret_cast<xcb_button_press_event_t*>(event_queue.next.get());
+                                [[maybe_unused]] NonOwningPtr<xcb_button_press_event_t> event = reinterpret_cast<xcb_button_press_event_t*>(event_queue.next.get());
                                 break;
                             }
         case XCB_BUTTON_RELEASE: {
-                                NonOwningPtr<xcb_button_release_event_t> event = reinterpret_cast<xcb_button_release_event_t*>(event_queue.next.get());
+                                [[maybe_unused]] NonOwningPtr<xcb_button_release_event_t> event = reinterpret_cast<xcb_button_release_event_t*>(event_queue.next.get());
                                 break;
                             }
         case XCB_EXPOSE: {

@@ -37,17 +37,17 @@ template<typename T, typename SizeType=size_t, typename D=CFreeDeleter> struct C
 
 
     // Iterators
-    const Iterator begin()  const { return Iterator(m_data); }
+    ConstIterator begin()  const { return Iterator(m_data); }
           Iterator begin()        { return Iterator(m_data); }
-    const Iterator end()    const { return Iterator(m_data + m_count); }
+    ConstIterator end()    const { return Iterator(m_data + m_count); }
           Iterator end()          { return Iterator(m_data + m_count); }
 
-    const Iterator cbegin() const { return ConstIterator(m_data); }
-    const Iterator cend()   const { return ConstIterator(m_data + m_count); }
+    ConstIterator cbegin() const { return ConstIterator(m_data); }
+    ConstIterator cend()   const { return ConstIterator(m_data + m_count); }
 
-    const ReverseIterator rbegin() const { return ReverseIterator(end()); }
+    ConstReverseIterator rbegin() const { return ReverseIterator(end()); }
           ReverseIterator rbegin()       { return ReverseIterator(end()); }
-    const ReverseIterator rend()   const { return ReverseIterator(begin()); }
+    ConstReverseIterator rend()   const { return ReverseIterator(begin()); }
           ReverseIterator rend()         { return ReverseIterator(begin()); }
 
     ConstReverseIterator crbegin() const { return ReverseIterator(end()); }

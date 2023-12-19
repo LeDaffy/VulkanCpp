@@ -15,7 +15,7 @@ auto main() -> i32
         .with_resizable(true)
         .with_dimensions(1280, 720)
         .with_position(1280/2, 720/2)
-        .with_resize_callback([](u32 width, u32 height, void* user_data){
+        .with_resize_callback([]([[maybe_unused]] u32 width, [[maybe_unused]] u32 height, void* user_data){
             fmt::println("Hello from resize callback");
             if (user_data) {
                 reinterpret_cast<vke::Instance*>(user_data)->frame_buffer_resized = true;
