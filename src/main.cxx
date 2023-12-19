@@ -10,8 +10,8 @@ auto main() -> i32
 {
     fmt::println("Hello world!");
     auto xwindow = window::WindowBuilder()
-        .with_name("NCAD 3DX")
-        .with_bg_color(32, 14, 58)
+        .with_name("N3DX")
+        .with_bg_color(38, 38, 38)
         .with_resizable(true)
         .with_dimensions(1280, 720)
         .with_position(1280/2, 720/2)

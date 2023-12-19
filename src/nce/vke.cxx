@@ -43,9 +43,7 @@ namespace vke {
                 image_available_semaphores[current_frame].get(), 
                 VK_NULL_HANDLE, &image_index);
 
-        if (result == VK_ERROR_OUT_OF_DATE_KHR 
-         || result == VK_SUBOPTIMAL_KHR 
-         || frame_buffer_resized) {
+        if (result == VK_ERROR_OUT_OF_DATE_KHR ) {
             frame_buffer_resized = false;
             recreate_swapchain();
             return;
@@ -201,6 +199,7 @@ namespace vke {
             framebuffer_info.height = swapchain_extent.height;
             framebuffer_info.layers = 1;
 
+            swapchain_framebuffers[index].reset(nullptr);
             vke::Result result = vkCreateFramebuffer(logical_device.get(), &framebuffer_info, nullptr, reinterpret_cast<VkFramebuffer*>(&(swapchain_framebuffers[index])));
             VKE_RESULT_CRASH(result);
         }
@@ -436,7 +435,9 @@ namespace vke {
         create_info.presentMode = present_mode;
         create_info.clipped = VK_TRUE;
         create_info.oldSwapchain = swapchain.get();
-        vke::Result result =  vkCreateSwapchainKHR(logical_device.get(), &create_info, nullptr, reinterpret_cast<VkSwapchainKHR*>(&swapchain));
+        std::unique_ptr<VkSwapchainKHR_T, VKESwapChainDeleter> swapchain_temp(nullptr);
+        vke::Result result =  vkCreateSwapchainKHR(logical_device.get(), &create_info, nullptr, reinterpret_cast<VkSwapchainKHR*>(&swapchain_temp));
+        swapchain.swap(swapchain_temp);
         VKE_RESULT_CRASH(result);
         auto x = VK_SUCCESS;
 
@@ -465,6 +466,7 @@ namespace vke {
             create_info.subresourceRange.baseArrayLayer = 0;
             create_info.subresourceRange.layerCount = 1;
 
+            image.reset(nullptr);
             vke::Result result = vkCreateImageView(this->logical_device.get(), &create_info, nullptr, reinterpret_cast<VkImageView*>(&swapchain_image_views[index]));
 
             if (!result) {
