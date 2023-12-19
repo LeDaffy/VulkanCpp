@@ -32,6 +32,35 @@ namespace vke {
     std::unique_ptr<VkDevice_T, VKEDeviceDeleter> Instance::logical_device = nullptr;
 
     // function definitions
+
+    void Instance::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::unique_ptr<VkBuffer_T, VKEBufferDeleter>& buffer, std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter>& buffer_memory) {
+        VkBufferCreateInfo buffer_info{};
+        buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        buffer_info.size = size;
+        buffer_info.usage = usage;
+        buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+        buffer.reset(nullptr);
+        vke::Result result = vkCreateBuffer(logical_device.get(), &buffer_info, nullptr, reinterpret_cast<VkBuffer*>(&buffer));
+        VKE_RESULT_CRASH(result);
+
+        VkMemoryRequirements mem_requirements;
+        vkGetBufferMemoryRequirements(logical_device.get(), buffer.get(), &mem_requirements);
+
+        VkMemoryAllocateInfo alloc_info{};
+        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        alloc_info.allocationSize = mem_requirements.size;
+        alloc_info.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, properties);
+
+        buffer_memory.reset(nullptr);
+        result = vkAllocateMemory(logical_device.get(), &alloc_info, nullptr, reinterpret_cast<VkDeviceMemory*>(&buffer_memory));
+        if (result != VK_SUCCESS) {
+            fmt::println("failed to allocate vertex buffer memory!");
+            VKE_RESULT_CRASH(result);
+        }
+        vkBindBufferMemory(logical_device.get(), buffer.get(), buffer_memory.get(), 0);
+
+    }
     auto Instance::find_memory_type(u32 type_filter, VkMemoryPropertyFlags properties) const -> u32 {
         VkPhysicalDeviceMemoryProperties mem_properties;
         vkGetPhysicalDeviceMemoryProperties(physical_device, &mem_properties);
@@ -47,35 +76,13 @@ namespace vke {
 
     }
     void Instance::create_vertex_buffer() {
-        VkBufferCreateInfo buffer_info{};
-        buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        buffer_info.size = sizeof(vertices[0]) * vertices.size();
-        buffer_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        buffer_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
+        createBuffer(buffer_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, vertex_buffer, vertex_buffer_memory);
 
-        vertex_buffer.reset(nullptr);
-        vke::Result result = vkCreateBuffer(logical_device.get(), &buffer_info, nullptr, reinterpret_cast<VkBuffer*>(&vertex_buffer));
-        VKE_RESULT_CRASH(result);
-
-        VkMemoryRequirements mem_requirements;
-        vkGetBufferMemoryRequirements(logical_device.get(), vertex_buffer.get(), &mem_requirements);
-
-        VkMemoryAllocateInfo alloc_info{};
-        alloc_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        alloc_info.allocationSize = mem_requirements.size;
-        alloc_info.memoryTypeIndex = find_memory_type(mem_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-
-        vertex_buffer_memory.reset(nullptr);
-        result = vkAllocateMemory(logical_device.get(), &alloc_info, nullptr, reinterpret_cast<VkDeviceMemory*>(&vertex_buffer_memory));
-        if (result != VK_SUCCESS) {
-            fmt::println("failed to allocate vertex buffer memory!");
-            VKE_RESULT_CRASH(result);
-        }
-        vkBindBufferMemory(logical_device.get(), vertex_buffer.get(), vertex_buffer_memory.get(), 0);
 
         void* data;
-        vkMapMemory(logical_device.get(), vertex_buffer_memory.get(), 0, buffer_info.size, 0, &data); {
-            memcpy(data, vertices.data(), static_cast<size_t>(buffer_info.size));
+        vkMapMemory(logical_device.get(), vertex_buffer_memory.get(), 0, buffer_size, 0, &data); {
+            memcpy(data, vertices.data(), static_cast<size_t>(buffer_size));
         } vkUnmapMemory(logical_device.get(), vertex_buffer_memory.get());
     }
 
