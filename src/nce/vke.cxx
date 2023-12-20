@@ -75,15 +75,55 @@ namespace vke {
         std::abort();
 
     }
+    auto Instance::copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size) const -> void {
+        VkCommandBufferAllocateInfo alloc_info{};
+        alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        alloc_info.commandPool = command_pool.get();
+        alloc_info.commandBufferCount = 1;
+
+        VkCommandBuffer command_buffer;
+        vkAllocateCommandBuffers(logical_device.get(), &alloc_info, &command_buffer);
+
+        VkCommandBufferBeginInfo begin_info{};
+        begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        vkBeginCommandBuffer(command_buffer, &begin_info);
+
+        VkBufferCopy copy_region{};
+        copy_region.srcOffset = 0; // Optional
+        copy_region.dstOffset = 0; // Optional
+        copy_region.size = size;
+        vkCmdCopyBuffer(command_buffer, src_buffer, dst_buffer, 1, &copy_region);
+        vkEndCommandBuffer(command_buffer);
+
+        VkSubmitInfo submit_info{};
+        submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submit_info.commandBufferCount = 1;
+        submit_info.pCommandBuffers = &command_buffer;
+
+        vkQueueSubmit(graphics_queue, 1, &submit_info, VK_NULL_HANDLE);
+        vkQueueWaitIdle(graphics_queue);
+        vkFreeCommandBuffers(logical_device.get(), command_pool.get(), 1, &command_buffer);
+
+
+    }
     void Instance::create_vertex_buffer() {
         VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
-        create_buffer(buffer_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, vertex_buffer, vertex_buffer_memory);
+        std::unique_ptr<VkBuffer_T, VKEBufferDeleter> staging_buffer(nullptr);
+        std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter> staging_buffer_memory(nullptr);
+        create_buffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
 
 
         void* data;
-        vkMapMemory(logical_device.get(), vertex_buffer_memory.get(), 0, buffer_size, 0, &data); {
+        vkMapMemory(logical_device.get(), staging_buffer_memory.get(), 0, buffer_size, 0, &data); {
             memcpy(data, vertices.data(), static_cast<size_t>(buffer_size));
-        } vkUnmapMemory(logical_device.get(), vertex_buffer_memory.get());
+        } vkUnmapMemory(logical_device.get(), staging_buffer_memory.get());
+
+        create_buffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertex_buffer, vertex_buffer_memory);
+
+        copy_buffer(staging_buffer.get(), vertex_buffer.get(), buffer_size);
     }
 
     void Instance::draw_frame() {
