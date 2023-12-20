@@ -1,4 +1,6 @@
 add_library(nce)
+nce_set_compiler_warnings(nce)
+nce_set_sanitizers(nce)
 
 target_sources(nce
     PRIVATE

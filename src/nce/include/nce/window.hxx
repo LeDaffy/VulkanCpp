@@ -24,6 +24,7 @@
 #include <nce/log.hxx>
 
 #include <X11/Xutil.h>
+#include <fmt/format.h>
 
 
 
@@ -126,13 +127,13 @@ namespace window {
         }
         private:
         Window() {}
-        Window(Attributes attributes, std::unique_ptr<xcb_connection_t, XCBConnectionDeleter>&& x_connection, xcb_window_t x_window, std::unique_ptr<xkb_state, XKBStateDeleter>&& kb_state, std::function<void(u32 width, u32 height, void* user_data)> resize_callback, i32 kb_device_id, xkb_keymap* keymap)
+        Window(Attributes attributes, std::unique_ptr<xcb_connection_t, XCBConnectionDeleter>&& x_connection, xcb_window_t x_window, std::unique_ptr<xkb_state, XKBStateDeleter>&& kb_state, std::function<void(u32 width, u32 height, void* user_data)> resize_callback, i32 kb_device_id, std::unique_ptr<xkb_keymap, XKBKeyMapDeleter>&& keymap)
             : attributes(attributes), x_connection(std::move(x_connection)), 
             x_window(x_window),
             kb_state(std::move(kb_state)),
             resize_callback(resize_callback),
             kb_device_id(kb_device_id),
-            keymap(keymap)
+            keymap(std::move(keymap))
         {
             xcb_change_property (this->x_connection.get(),
                     XCB_PROP_MODE_REPLACE,
@@ -194,13 +195,12 @@ namespace window {
             i32 kb_device_id = xkb_x11_get_core_keyboard_device_id(x_connection.get());
             if (kb_device_id == -1) { LOGERROR("Couldn't get kb device id"); std::abort(); }
 
-            xkb_keymap* keymap = xkb_x11_keymap_new_from_device(kb_context.get(), x_connection.get(), kb_device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
+            std::unique_ptr<xkb_keymap, XKBKeyMapDeleter> keymap(xkb_x11_keymap_new_from_device(kb_context.get(), x_connection.get(), kb_device_id, XKB_KEYMAP_COMPILE_NO_FLAGS));
             if (!keymap) { LOGERROR("Couldn't get kb device id"); std::abort(); }
 
 
-            xkb_x11_keymap_new_from_device(kb_context.get(), x_connection.get(), kb_device_id,  static_cast<xkb_keymap_compile_flags>(0));
 
-            std::unique_ptr<xkb_state, XKBStateDeleter> kb_state(xkb_x11_state_new_from_device(keymap, x_connection.get(), kb_device_id));
+            std::unique_ptr<xkb_state, XKBStateDeleter> kb_state(xkb_x11_state_new_from_device(keymap.get(), x_connection.get(), kb_device_id));
             if (!kb_state) { LOGERROR("Couldn't get kb device id"); std::abort(); }
 
             NonOwningPtr<const xcb_setup_t> x_setup = xcb_get_setup(x_connection.get());
@@ -212,10 +212,10 @@ namespace window {
 
 
             xcb_create_window_value_list_t value_window = {};
-            value_window.background_pixel = attributes.background_color.b << 16 
-                | attributes.background_color.g << 8  
-                | attributes.background_color.b << 0 
-                | 255 << 24;
+            value_window.background_pixel = static_cast<u32>(attributes.background_color.b) << 16u 
+                | static_cast<u32>(attributes.background_color.g) << 8u  
+                | static_cast<u32>(attributes.background_color.b) << 0u 
+                | 255u << 24u;
 
             value_window.event_mask = XCB_EVENT_MASK_KEY_PRESS
                 | XCB_EVENT_MASK_KEY_RELEASE
@@ -270,7 +270,7 @@ namespace window {
             xcb_flush(x_connection.get());
 
 
-            return Window(attributes, std::move(x_connection), window, std::move(kb_state), resize_callback, kb_device_id, keymap);
+            return Window(attributes, std::move(x_connection), window, std::move(kb_state), resize_callback, kb_device_id, std::move(keymap));
         }
     };
 }

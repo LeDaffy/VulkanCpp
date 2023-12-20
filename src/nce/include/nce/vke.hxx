@@ -12,7 +12,6 @@
 
 #include <nce/log.hxx>
 #include <nce/types.hxx>
-#include <nce/carray.hxx>
 #include <nce/log.hxx>
 #include <nce/window.hxx>
 #include <nce/vertex.hxx>
@@ -186,12 +185,18 @@ struct Instance {
     bool frame_buffer_resized = false;
     const window::Window& window;
     const std::vector<Vertex> vertices = {
-        {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-        {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+        {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+    };
+    const std::vector<uint16_t> indices = {
+        0, 1, 2, 2, 3, 0
     };
     std::unique_ptr<VkBuffer_T, VKEBufferDeleter> vertex_buffer;
     std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter> vertex_buffer_memory;
+    std::unique_ptr<VkBuffer_T, VKEBufferDeleter> index_buffer;
+    std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter> index_buffer_memory;
 
 
 
@@ -214,6 +219,7 @@ struct Instance {
     void draw_frame();
     void create_sync_objects();
     void create_vertex_buffer();
+    void create_index_buffer();
     void recreate_swapchain();
     void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::unique_ptr<VkBuffer_T, VKEBufferDeleter>& buffer, std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter>& buffer_memory);
 
@@ -226,11 +232,11 @@ struct Instance {
     [[nodiscard]] auto is_physical_device_suitable(VkPhysicalDevice device) -> bool;
     [[nodiscard]] auto check_validation_layer_support(std::array<CString, 1> layers) -> bool;
     /// @brief Query vulkan for the avaiable GPUs
-    [[nodiscard]] auto available_physical_devices() const -> CArray<VkPhysicalDevice, u32>;
+    [[nodiscard]] auto available_physical_devices() const -> std::vector<VkPhysicalDevice>;
     /// @brief Query vulkan for the avaiable validation layers
-    [[nodiscard]] auto available_validation_layers() const -> CArray<VkLayerProperties, u32>;
+    [[nodiscard]] auto available_validation_layers() const -> std::vector<VkLayerProperties>;
     /// @brief Query vulkan for the avaiable extensions
-    [[nodiscard]] auto available_extensions() const -> CArray<VkExtensionProperties, u32>;
+    [[nodiscard]] auto available_extensions() const -> std::vector<VkExtensionProperties>;
     [[nodiscard]] auto query_swapchain_support(VkPhysicalDevice device, NonOwningPtr<VkSurfaceKHR_T> surface) const -> SwapChainSupportDetails;
     [[nodiscard]] auto choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& available_formats) const -> VkSurfaceFormatKHR;
     [[nodiscard]] auto choose_swap_present_mode(const std::vector<VkPresentModeKHR>& available_present_modes) const -> VkPresentModeKHR;

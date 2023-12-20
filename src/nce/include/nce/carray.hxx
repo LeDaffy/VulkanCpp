@@ -3,9 +3,7 @@
 #include <functional>
 
 
-struct CFreeDeleter {
-    void operator()(void* ptr){ std::free(ptr); }
-};
+struct CFreeDeleter { void operator()(void* ptr){ std::free(ptr); } };
 /*!
  * @brief CArray: Templated struct used to wrap a C-style array from a pointer and a length
  * Example:
@@ -61,7 +59,7 @@ template<typename T, typename SizeType=size_t, typename D=CFreeDeleter> struct C
      *  @param s Number os elements in the array.
      *  initialize the array pointer and array size respectively.
      */
-    CArray(Pointer p, SizeType s) : m_deleter(), m_data(p), m_count(s)  {}
+    CArray(Pointer p, SizeType s) : m_data(p), m_count(s)  {}
 
     /** 
      *  @brief Initialize a CArray from a C-style array and and a size.
@@ -70,8 +68,14 @@ template<typename T, typename SizeType=size_t, typename D=CFreeDeleter> struct C
      *  @param s Number os elements in the array.
      *  initialize the array pointer and array size respectively.
      */
-    CArray(SizeType s) : m_deleter(), m_data(), m_count(s)  {
+    CArray(SizeType s) : m_data(), m_count(s)  {
         m_data = reinterpret_cast<ValueType*>(std::malloc(sizeof(ValueType) * s));
+    }
+
+
+    CArray(CArray&& o) : m_data(o.m_data), m_count(o.m_count)  {
+        o.m_count = 0;
+        o.m_data = 0;
     }
 
 
@@ -79,7 +83,9 @@ template<typename T, typename SizeType=size_t, typename D=CFreeDeleter> struct C
      *  @brief Call the deleter on the array.
      */
     ~CArray() {
-        m_deleter(m_data);
+        if (m_data) {
+            m_deleter(m_data);
+        }
     }
 
     // size

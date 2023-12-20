@@ -26,10 +26,10 @@
 
 namespace vke {
     //static members
-    std::unique_ptr<VkInstance_T, VKEInstanceDeleter> Instance::instance = nullptr;
-    std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter> Instance::surface = nullptr;
-    VkPhysicalDevice Instance::physical_device = nullptr;
-    std::unique_ptr<VkDevice_T, VKEDeviceDeleter> Instance::logical_device = nullptr;
+    std::unique_ptr<VkInstance_T, VKEInstanceDeleter> Instance::instance(nullptr);
+    std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter> Instance::surface(nullptr);
+    VkPhysicalDevice Instance::physical_device(nullptr);
+    std::unique_ptr<VkDevice_T, VKEDeviceDeleter> Instance::logical_device(nullptr);
 
     // function definitions
 
@@ -108,6 +108,22 @@ namespace vke {
         vkFreeCommandBuffers(logical_device.get(), command_pool.get(), 1, &command_buffer);
 
 
+    }
+    void Instance::create_index_buffer() {
+        VkDeviceSize buffer_size = sizeof(indices[0]) * indices.size();
+        std::unique_ptr<VkBuffer_T, VKEBufferDeleter> staging_buffer(nullptr);
+        std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter> staging_buffer_memory(nullptr);
+        create_buffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, staging_buffer, staging_buffer_memory);
+
+
+        void* data;
+        vkMapMemory(logical_device.get(), staging_buffer_memory.get(), 0, buffer_size, 0, &data); {
+            memcpy(data, indices.data(), static_cast<size_t>(buffer_size));
+        } vkUnmapMemory(logical_device.get(), staging_buffer_memory.get());
+
+        create_buffer(buffer_size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, index_buffer, index_buffer_memory);
+
+        copy_buffer(staging_buffer.get(), index_buffer.get(), buffer_size);
     }
     void Instance::create_vertex_buffer() {
         VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
@@ -252,8 +268,9 @@ namespace vke {
             VkBuffer vertex_buffers[] = {vertex_buffer.get()};
             VkDeviceSize offsets[] = {0};
             vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
+            vkCmdBindIndexBuffer(command_buffer, index_buffer.get(), 0, VK_INDEX_TYPE_UINT16);
 
-            vkCmdDraw(command_buffer, static_cast<u32>(vertices.size()), 1, 0, 0);
+            vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
         }
         vkCmdEndRenderPass(command_buffer);
@@ -584,7 +601,7 @@ namespace vke {
         }
     }
     void Instance::create_instance() {
-        CArray<VkExtensionProperties, u32> extensions_available = available_extensions();
+        auto extensions_available = available_extensions();
 
 #if 0
         for (auto const& e : extensions_available) {
@@ -600,6 +617,8 @@ namespace vke {
         if (use_validation_layers) {
             this->info_create.enabledLayerCount = static_cast<uint32_t>(this->validation_layers.size());
             this->info_create.ppEnabledLayerNames = this->validation_layers.data();
+
+            instance.reset(nullptr);
             vke::Result result = vkCreateInstance(&this->info_create, nullptr, reinterpret_cast<VkInstance*>(&this->instance));
             VKE_RESULT_CRASH(result);
         } else {
@@ -716,6 +735,7 @@ namespace vke {
             create_framebuffers();
             create_command_pool();
             create_vertex_buffer();
+            create_index_buffer();
             create_command_buffers();
             create_sync_objects();
 
@@ -804,7 +824,8 @@ namespace vke {
 
         u32 queue_family_count = 0;
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nullptr);
-        CArray<VkQueueFamilyProperties, u32> queue_families(queue_family_count);
+        std::vector<VkQueueFamilyProperties> queue_families;
+        queue_families.resize(queue_family_count);
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
 
         VkBool32 present_support = 0;
@@ -862,7 +883,8 @@ namespace vke {
         u32 extension_count;
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, nullptr);
 
-        CArray<VkExtensionProperties> available_extensions(extension_count);
+        std::vector<VkExtensionProperties> available_extensions;
+        available_extensions.resize(extension_count);
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extension_count, available_extensions.data());
 
         std::set<std::string> requiredExtensions(this->device_extensions.begin(), this->device_extensions.end());
@@ -932,33 +954,36 @@ namespace vke {
         }
         return true;
     }
-    auto Instance::available_physical_devices() const -> CArray<VkPhysicalDevice, u32> {
+    auto Instance::available_physical_devices() const -> std::vector<VkPhysicalDevice> {
         u32 device_count;
+        std::vector<VkPhysicalDevice> devices_available;
         vke::Result result = vkEnumeratePhysicalDevices(this->instance.get(), &device_count, nullptr);
         VKE_RESULT_CRASH(result);
         if (device_count == 0) {
             LOGERROR("Vulkan not supported on this device");
             std::abort();
         }
-        CArray<VkPhysicalDevice, u32> devices_available(device_count);
+        devices_available.resize(device_count);
         result = vkEnumeratePhysicalDevices(this->instance.get(), &device_count, devices_available.data());
         VKE_RESULT_CRASH(result);
         return devices_available;
     }
-    auto Instance::available_validation_layers() const -> CArray<VkLayerProperties, u32> {
+    auto Instance::available_validation_layers() const -> std::vector<VkLayerProperties> {
         u32 layer_count = 0;
         vke::Result result = vkEnumerateInstanceLayerProperties(&layer_count, nullptr);
         VKE_RESULT_CRASH(result);
-        CArray<VkLayerProperties, u32> layers_available(layer_count);
+        std::vector<VkLayerProperties> layers_available;
+        layers_available.resize(layer_count);
         result = vkEnumerateInstanceLayerProperties(&layer_count, layers_available.data());
         VKE_RESULT_CRASH(result);
         return layers_available;
     }
-    auto Instance::available_extensions() const -> CArray<VkExtensionProperties, u32> {
+    auto Instance::available_extensions() const -> std::vector<VkExtensionProperties> {
         u32 extension_count = 0;
         vke::Result result = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, nullptr);
         VKE_RESULT_CRASH(result);
-        CArray<VkExtensionProperties, u32, CFreeDeleter> extensions_available(extension_count);
+        std::vector<VkExtensionProperties> extensions_available;
+        extensions_available.resize(extension_count);
         result = vkEnumerateInstanceExtensionProperties(nullptr, &extension_count, extensions_available.data());
         VKE_RESULT_CRASH(result);
         return extensions_available;
