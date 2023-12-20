@@ -22,8 +22,8 @@ struct CStr {
     const char* str;
     SizeType m_size;
     
-    constexpr CStr(const char* str) : str(str), m_size(strlen(str)) {}
-    constexpr CStr& operator=(const char* o) { this->str = o; m_size = strlen(str); return *this; };
+    constexpr CStr(const char* str) : str(str), m_size(static_cast<SizeType>(strlen(str))) {}
+    constexpr CStr& operator=(const char* o) { this->str = o; m_size = static_cast<SizeType>(strlen(str)); return *this; };
     constexpr operator const char*() const {return str;}
     constexpr SizeType size() { return m_size; }
 };

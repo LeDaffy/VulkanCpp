@@ -180,7 +180,7 @@ namespace window {
 
             // Conncet to WM
             std::string WM_PROTOCOLS_PROPERTY_NAME = "WM_PROTOCOLS";
-            xcb_intern_atom_cookie_t intern_atom_cookie = xcb_intern_atom(x_connection.get(), true, WM_PROTOCOLS_PROPERTY_NAME.size(),
+            xcb_intern_atom_cookie_t intern_atom_cookie = xcb_intern_atom(x_connection.get(), true, static_cast<u16>(WM_PROTOCOLS_PROPERTY_NAME.size()),
                     WM_PROTOCOLS_PROPERTY_NAME.c_str());
             std::unique_ptr<xcb_intern_atom_reply_t, XCBAtomDeleter> intern_atom_reply(xcb_intern_atom_reply(x_connection.get(), intern_atom_cookie, NULL));
             // [unused var] xcb_atom_t window_manager_protocols_property = intern_atom_reply->atom;
@@ -198,7 +198,7 @@ namespace window {
             if (!keymap) { LOGERROR("Couldn't get kb device id"); std::abort(); }
 
 
-            xkb_x11_keymap_new_from_device(kb_context.get(), x_connection.get(), kb_device_id,  (xkb_keymap_compile_flags)0);
+            xkb_x11_keymap_new_from_device(kb_context.get(), x_connection.get(), kb_device_id,  static_cast<xkb_keymap_compile_flags>(0));
 
             std::unique_ptr<xkb_state, XKBStateDeleter> kb_state(xkb_x11_state_new_from_device(keymap, x_connection.get(), kb_device_id));
             if (!kb_state) { LOGERROR("Couldn't get kb device id"); std::abort(); }
@@ -259,8 +259,8 @@ namespace window {
             fmt::println("Resizable is {}", attributes.resizable);
             if (!attributes.resizable) {
                 xcb_size_hints_t window_size_hints{};
-                xcb_icccm_size_hints_set_min_size(&window_size_hints, attributes.dimensions.x, attributes.dimensions.y);
-                xcb_icccm_size_hints_set_max_size(&window_size_hints, attributes.dimensions.x, attributes.dimensions.y);
+                xcb_icccm_size_hints_set_min_size(&window_size_hints, static_cast<i32>(attributes.dimensions.x), static_cast<i32>(attributes.dimensions.y));
+                xcb_icccm_size_hints_set_max_size(&window_size_hints, static_cast<i32>(attributes.dimensions.x), static_cast<i32>(attributes.dimensions.y));
 
                 xcb_icccm_set_wm_size_hints(x_connection.get(), window, XCB_ATOM_WM_NORMAL_HINTS, &window_size_hints);
             }

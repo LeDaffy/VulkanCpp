@@ -215,7 +215,7 @@ struct Instance {
     void create_sync_objects();
     void create_vertex_buffer();
     void recreate_swapchain();
-    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::unique_ptr<VkBuffer_T, VKEBufferDeleter>& buffer, std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter>& buffer_memory);
+    void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::unique_ptr<VkBuffer_T, VKEBufferDeleter>& buffer, std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter>& buffer_memory);
 
     [[nodiscard]] auto find_memory_type(u32 type_filter, VkMemoryPropertyFlags properties) const -> u32;
     [[nodiscard]] auto check_device_extension_support(VkPhysicalDevice device) const -> bool;

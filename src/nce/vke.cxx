@@ -15,10 +15,10 @@
         std::abort();
     }
 
-    size_t file_size = (size_t) file.tellg();
+    std::size_t file_size = static_cast<size_t>(file.tellg());
     std::vector<std::byte> buffer(file_size);
     file.seekg(0);
-    file.read(reinterpret_cast<char*>(buffer.data()), file_size);
+    file.read(reinterpret_cast<char*>(buffer.data()), static_cast<std::streamsize>(file_size));
     fmt::println("Buffer size {}", buffer.size());
     file.close();
     return buffer;
@@ -33,7 +33,7 @@ namespace vke {
 
     // function definitions
 
-    void Instance::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::unique_ptr<VkBuffer_T, VKEBufferDeleter>& buffer, std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter>& buffer_memory) {
+    void Instance::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::unique_ptr<VkBuffer_T, VKEBufferDeleter>& buffer, std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter>& buffer_memory) {
         VkBufferCreateInfo buffer_info{};
         buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
         buffer_info.size = size;
@@ -77,7 +77,7 @@ namespace vke {
     }
     void Instance::create_vertex_buffer() {
         VkDeviceSize buffer_size = sizeof(vertices[0]) * vertices.size();
-        createBuffer(buffer_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, vertex_buffer, vertex_buffer_memory);
+        create_buffer(buffer_size, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, vertex_buffer, vertex_buffer_memory);
 
 
         void* data;
@@ -230,7 +230,7 @@ namespace vke {
         alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         alloc_info.commandPool = command_pool.get();
         alloc_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        alloc_info.commandBufferCount = command_buffers.size();
+        alloc_info.commandBufferCount = static_cast<u32>(command_buffers.size());
 
         vke::Result result = vkAllocateCommandBuffers(logical_device.get(), &alloc_info, command_buffers.data());
         if (!result) {
@@ -264,8 +264,8 @@ namespace vke {
             framebuffer_info.height = swapchain_extent.height;
             framebuffer_info.layers = 1;
 
-            swapchain_framebuffers[index].reset(nullptr);
-            vke::Result result = vkCreateFramebuffer(logical_device.get(), &framebuffer_info, nullptr, reinterpret_cast<VkFramebuffer*>(&(swapchain_framebuffers[index])));
+            swapchain_framebuffers[static_cast<std::size_t>(index)].reset(nullptr);
+            vke::Result result = vkCreateFramebuffer(logical_device.get(), &framebuffer_info, nullptr, reinterpret_cast<VkFramebuffer*>(&(swapchain_framebuffers[static_cast<std::size_t>(index)])));
             VKE_RESULT_CRASH(result);
         }
     };
@@ -520,7 +520,7 @@ namespace vke {
         for (const auto& [index, image] : std::views::enumerate(swapchain_image_views) ) {
             VkImageViewCreateInfo create_info{};
             create_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            create_info.image = swapchain_images[index];
+            create_info.image = swapchain_images[static_cast<std::size_t>(index)];
             create_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
             create_info.format = swapchain_image_format;
             create_info.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -534,7 +534,7 @@ namespace vke {
             create_info.subresourceRange.layerCount = 1;
 
             image.reset(nullptr);
-            vke::Result result = vkCreateImageView(this->logical_device.get(), &create_info, nullptr, reinterpret_cast<VkImageView*>(&swapchain_image_views[index]));
+            vke::Result result = vkCreateImageView(this->logical_device.get(), &create_info, nullptr, reinterpret_cast<VkImageView*>(&swapchain_image_views[static_cast<std::size_t>(index)]));
 
             if (!result) {
                 fmt::println("Failed to create image view");
@@ -682,7 +682,7 @@ namespace vke {
         }
 
     void Instance::recreate_swapchain() {
-        int width = 0, height = 0;
+        u32 width = 0, height = 0;
         width = window.attributes.dimensions.x;
         height = window.attributes.dimensions.y;
         while (width == 0 || height == 0) {
@@ -772,7 +772,7 @@ namespace vke {
             if (queue_family.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 indices.graphics_family = index;
             }
-            vkGetPhysicalDeviceSurfaceSupportKHR(device, index, this->surface.get(), &present_support);
+            vkGetPhysicalDeviceSurfaceSupportKHR(device, static_cast<u32>(index), this->surface.get(), &present_support);
             if (present_support) {
                 indices.present_family = index;
             }

@@ -71,7 +71,7 @@ template<typename T, typename SizeType=size_t, typename D=CFreeDeleter> struct C
      *  initialize the array pointer and array size respectively.
      */
     CArray(SizeType s) : m_deleter(), m_data(), m_count(s)  {
-        m_data = (ValueType*)std::malloc(sizeof(ValueType) * s);
+        m_data = reinterpret_cast<ValueType*>(std::malloc(sizeof(ValueType) * s));
     }
 
 
