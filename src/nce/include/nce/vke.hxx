@@ -6,7 +6,12 @@
 
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_xcb.h>
+
+#define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <chrono>
 
 #include <nce/vke_macro.hxx>
 
@@ -131,6 +136,8 @@ struct VKESemaphoreDeleter { void operator()(VkSemaphore_T* ptr); };
 struct VKEFenceDeleter { void operator()(VkFence_T* ptr); };
 struct VKEBufferDeleter { void operator()(VkBuffer_T* ptr); };
 struct VKEMemoryDeleter { void operator()(VkDeviceMemory_T* ptr); };
+struct VKEDescriptorSetLayoutDeleter { void operator()(VkDescriptorSetLayout_T* ptr); };
+struct VKEDescriptorPoolDeleter { void operator()(VkDescriptorPool_T* ptr); };
 
 struct QueueFamilyIndices {
     std::optional<u32> graphics_family;
@@ -143,6 +150,12 @@ struct SwapChainSupportDetails {
     VkSurfaceCapabilitiesKHR capabilities;
     std::vector<VkSurfaceFormatKHR> formats;
     std::vector<VkPresentModeKHR> present_modes;
+};
+
+struct UniformBufferObject {
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 proj;
 };
 
 /**
@@ -172,6 +185,7 @@ struct Instance {
     VkFormat swapchain_image_format;
     VkExtent2D swapchain_extent;
     std::unique_ptr<VkRenderPass_T, VKERenderPassDeleter> render_pass;
+    std::unique_ptr<VkDescriptorSetLayout_T, VKEDescriptorSetLayoutDeleter> descriptor_set_layout;
     std::unique_ptr<VkPipelineLayout_T, VKEPipelineLayoutDeleter> pipeline_layout;
     std::unique_ptr<VkPipeline_T, VKEGraphicsPipelineDeleter> graphics_pipeline;
     std::vector<std::unique_ptr<VkFramebuffer_T, VKEFramebufferDeleter>> swapchain_framebuffers;
@@ -197,6 +211,12 @@ struct Instance {
     std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter> vertex_buffer_memory;
     std::unique_ptr<VkBuffer_T, VKEBufferDeleter> index_buffer;
     std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter> index_buffer_memory;
+    std::vector<std::unique_ptr<VkBuffer_T, VKEBufferDeleter>> uniform_buffers;
+    std::vector<std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter>> uniform_buffers_memory;
+    std::vector<void*> uniform_buffers_mapped;
+
+    std::unique_ptr<VkDescriptorPool_T, VKEDescriptorPoolDeleter> descriptor_pool;
+    std::vector<VkDescriptorSet> descriptor_sets;
 
 
 
@@ -204,6 +224,7 @@ struct Instance {
     /// @brief Creates an Instance.
     /// Itializes Vulkan, selects a physical devices
     Instance(window::Window& window);
+    void update_uniform_buffer(u32 current_image);
     void create_instance();
     void create_surface(const window::Window& window);
     void pick_physical_device();
@@ -211,6 +232,7 @@ struct Instance {
     void create_swapchain();
     void create_image_views();
     void create_render_pass();
+    void create_descriptor_set_layout();
     void create_graphics_pipeline();
     void create_framebuffers();
     void create_command_pool();
@@ -220,6 +242,9 @@ struct Instance {
     void create_sync_objects();
     void create_vertex_buffer();
     void create_index_buffer();
+    void create_uniform_buffers();
+    void create_descriptor_pool();
+    void create_descriptor_sets();
     void recreate_swapchain();
     void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::unique_ptr<VkBuffer_T, VKEBufferDeleter>& buffer, std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter>& buffer_memory);
 

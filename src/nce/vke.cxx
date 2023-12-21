@@ -7,6 +7,7 @@
 #include <vulkan/vulkan_core.h>
 
 
+
 [[nodiscard]] static auto read_file(std::filesystem::path shader_path) -> std::vector<std::byte> {
     std::ifstream file(shader_path, std::ios::ate | std::ios::binary);
 
@@ -32,6 +33,102 @@ namespace vke {
     std::unique_ptr<VkDevice_T, VKEDeviceDeleter> Instance::logical_device(nullptr);
 
     // function definitions
+    
+    void Instance::create_descriptor_sets() {
+        std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptor_set_layout.get());
+        VkDescriptorSetAllocateInfo alloc_info{};
+        alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        alloc_info.descriptorPool = descriptor_pool.get();
+        alloc_info.descriptorSetCount = static_cast<u32>(MAX_FRAMES_IN_FLIGHT);
+        alloc_info.pSetLayouts = layouts.data();
+
+        descriptor_sets.resize(MAX_FRAMES_IN_FLIGHT);
+        vke::Result result = vkAllocateDescriptorSets(logical_device.get(), &alloc_info, descriptor_sets.data());
+        VKE_RESULT_CRASH(result);
+
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            VkDescriptorBufferInfo buffer_info{};
+            buffer_info.buffer = uniform_buffers[i].get();
+            buffer_info.offset = 0;
+            buffer_info.range = sizeof(UniformBufferObject);
+
+            VkWriteDescriptorSet descriptor_write{};
+            descriptor_write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptor_write.dstSet = descriptor_sets[i];
+            descriptor_write.dstBinding = 0;
+            descriptor_write.dstArrayElement = 0;
+            descriptor_write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptor_write.descriptorCount = 1;
+            descriptor_write.pBufferInfo = &buffer_info;
+            descriptor_write.pImageInfo = nullptr; // Optional
+            descriptor_write.pTexelBufferView = nullptr; // Optional
+
+            vkUpdateDescriptorSets(logical_device.get(), 1, &descriptor_write, 0, nullptr);
+        }
+
+    }
+    void Instance::create_descriptor_pool() {
+        VkDescriptorPoolSize pool_size{};
+        pool_size.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        pool_size.descriptorCount = static_cast<u32>(MAX_FRAMES_IN_FLIGHT);
+
+        VkDescriptorPoolCreateInfo pool_info{};
+        pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        pool_info.poolSizeCount = 1;
+        pool_info.pPoolSizes = &pool_size;
+        pool_info.maxSets = static_cast<u32>(MAX_FRAMES_IN_FLIGHT);
+
+        vke::Result result = vkCreateDescriptorPool(logical_device.get(), &pool_info, nullptr, reinterpret_cast<VkDescriptorPool*>(&descriptor_pool));
+        VKE_RESULT_CRASH(result);
+    }
+    void Instance::update_uniform_buffer(u32 current_image) {
+        static auto start_time = std::chrono::high_resolution_clock::now();
+
+        auto current_time = std::chrono::high_resolution_clock::now();
+        float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
+
+        UniformBufferObject ubo{};
+        ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.proj = glm::perspective(glm::radians(45.0f), static_cast<f32>(swapchain_extent.width) / static_cast<f32>(swapchain_extent.height), 0.1f, 10.0f);
+        // ubo.model = glm::mat4(1.0);
+        // ubo.view = glm::mat4(1.0);
+        // ubo.proj = glm::mat4(1.0);
+
+        ubo.proj[1][1] *= -1;
+        memcpy(uniform_buffers_mapped[current_image], &ubo, sizeof(ubo));
+    }
+    void Instance::create_uniform_buffers() {
+        VkDeviceSize buffer_size = sizeof(UniformBufferObject);
+        uniform_buffers.resize(MAX_FRAMES_IN_FLIGHT);
+        uniform_buffers_memory.resize(MAX_FRAMES_IN_FLIGHT);
+        uniform_buffers_mapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+        for (const auto& [buffer, buffer_memory, buffer_map] : std::views::zip(uniform_buffers, uniform_buffers_memory, uniform_buffers_mapped)) {
+            create_buffer(buffer_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT 
+                    | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                    buffer,
+                    buffer_memory);
+
+            vkMapMemory(logical_device.get(), buffer_memory.get(), 0, buffer_size, 0, &buffer_map);
+
+        }
+    }
+    void Instance::create_descriptor_set_layout() {
+        VkDescriptorSetLayoutBinding ubo_layout_binding{};
+        ubo_layout_binding.binding = 0;
+        ubo_layout_binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        ubo_layout_binding.descriptorCount = 1;
+        ubo_layout_binding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+        VkDescriptorSetLayoutCreateInfo layout_info{};
+        layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+        layout_info.bindingCount = 1;
+        layout_info.pBindings = &ubo_layout_binding;
+        vke::Result result = vkCreateDescriptorSetLayout(logical_device.get(), &layout_info, nullptr, reinterpret_cast<VkDescriptorSetLayout*>(&descriptor_set_layout));
+        VKE_RESULT_CRASH(result);
+    };
 
     void Instance::create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::unique_ptr<VkBuffer_T, VKEBufferDeleter>& buffer, std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter>& buffer_memory) {
         VkBufferCreateInfo buffer_info{};
@@ -161,6 +258,7 @@ namespace vke {
             VKE_RESULT_CRASH(result);
         }
 
+        update_uniform_buffer(current_frame);
         vkResetFences(logical_device.get(), 1, 
                 reinterpret_cast<const VkFence*>(&in_flight_fences[current_frame]));
 
@@ -269,7 +367,7 @@ namespace vke {
             VkDeviceSize offsets[] = {0};
             vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
             vkCmdBindIndexBuffer(command_buffer, index_buffer.get(), 0, VK_INDEX_TYPE_UINT16);
-
+            vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout.get(), 0, 1, &descriptor_sets[current_frame], 0, nullptr);
             vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
         }
@@ -452,8 +550,8 @@ namespace vke {
         rasterizer.rasterizerDiscardEnable = VK_FALSE;
         rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
         rasterizer.lineWidth = 1.0f;
-        rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-        rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+        rasterizer.cullMode = VK_CULL_MODE_NONE; // VK_CULL_MODE_BACK_BIT;
+        rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE; //VK_FRONT_FACE_CLOCKWISE;
         rasterizer.depthBiasEnable = VK_FALSE;
         rasterizer.depthBiasConstantFactor = 0.0f; // Optional
         rasterizer.depthBiasClamp = 0.0f; // Optional
@@ -491,10 +589,10 @@ namespace vke {
 
         VkPipelineLayoutCreateInfo pipeline_layout_info{};
         pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipeline_layout_info.setLayoutCount = 0; // Optional
-        pipeline_layout_info.pSetLayouts = nullptr; // Optional
-        pipeline_layout_info.pushConstantRangeCount = 0; // Optional
-        pipeline_layout_info.pPushConstantRanges = nullptr; // Optional
+        pipeline_layout_info.setLayoutCount = 1;
+        pipeline_layout_info.pSetLayouts = reinterpret_cast<VkDescriptorSetLayout*>(&descriptor_set_layout);
+        pipeline_layout_info.pushConstantRangeCount = 0;
+        pipeline_layout_info.pPushConstantRanges = nullptr;
 
         vke::Result result = vkCreatePipelineLayout(logical_device.get(), &pipeline_layout_info, nullptr, reinterpret_cast<VkPipelineLayout*>(&pipeline_layout));
         VKE_RESULT_CRASH(result);
@@ -731,11 +829,15 @@ namespace vke {
             create_swapchain();
             create_image_views();
             create_render_pass();
+            create_descriptor_set_layout();
             create_graphics_pipeline();
             create_framebuffers();
             create_command_pool();
             create_vertex_buffer();
             create_index_buffer();
+            create_uniform_buffers();
+            create_descriptor_pool();
+            create_descriptor_sets();
             create_command_buffers();
             create_sync_objects();
 
@@ -1002,4 +1104,6 @@ namespace vke {
     void VKEFenceDeleter::operator()(VkFence_T* ptr) { vkDestroyFence(Instance::logical_device.get(), ptr, nullptr); }
     void VKEBufferDeleter::operator()(VkBuffer_T* ptr) { vkDestroyBuffer(Instance::logical_device.get(), ptr, nullptr); }
     void VKEMemoryDeleter::operator()(VkDeviceMemory_T* ptr) { vkFreeMemory(Instance::logical_device.get(), ptr, nullptr); }
+    void VKEDescriptorSetLayoutDeleter::operator()(VkDescriptorSetLayout_T* ptr) { vkDestroyDescriptorSetLayout(Instance::logical_device.get(), ptr, nullptr); }
+    void VKEDescriptorPoolDeleter::operator()(VkDescriptorPool_T* ptr) { vkDestroyDescriptorPool(Instance::logical_device.get(), ptr, nullptr); }
 }
