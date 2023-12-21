@@ -17,6 +17,7 @@ find_package(X11 REQUIRED)
 find_package(Vulkan REQUIRED)
 
 add_executable(ncad)
+include(precompiled_headers)
 nce_set_compiler_warnings(ncad)
 nce_set_sanitizers(ncad)
 

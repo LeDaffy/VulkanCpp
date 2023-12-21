@@ -1,0 +1,30 @@
+file(WRITE ${CMAKE_BINARY_DIR}/null.cxx "")
+add_library(pch ${CMAKE_BINARY_DIR}/null.cxx)
+target_precompile_headers(pch
+    PUBLIC
+    <algorithm>
+    <any>
+    <array>
+    <bitset>
+    <cstddef>
+    <cstdint>
+    <cstdio>
+    <filesystem>
+    <fmt/format.h>
+    <format>
+    <fstream>
+    <functional>
+    <iostream>
+    <limits>
+    <map>
+    <memory>
+    <optional>
+    <ranges>
+    <set>
+    <string>
+    <string_view>
+    <tuple>
+    <unistd.h>
+    <unordered_map>
+    <vector>
+    )

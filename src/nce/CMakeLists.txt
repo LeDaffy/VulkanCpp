@@ -18,31 +18,4 @@ target_link_libraries(nce
     X11::xkbcommon_X11
     X11::xcb_icccm
     )
-target_precompile_headers(nce
-    PUBLIC
-    <algorithm>
-    <any>
-    <array>
-    <bitset>
-    <cstddef>
-    <cstdint>
-    <cstdio>
-    <filesystem>
-    <fmt/format.h>
-    <format>
-    <fstream>
-    <functional>
-    <iostream>
-    <limits>
-    <map>
-    <memory>
-    <optional>
-    <ranges>
-    <set>
-    <string>
-    <string_view>
-    <tuple>
-    <unistd.h>
-    <unordered_map>
-    <vector>
-    )
+target_precompile_headers(nce REUSE_FROM pch)
