@@ -19,6 +19,7 @@ target_precompile_headers(pch
     <map>
     <memory>
     <optional>
+    <stack>
     <ranges>
     <set>
     <string>
