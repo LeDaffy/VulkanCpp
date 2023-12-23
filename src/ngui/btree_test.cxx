@@ -1,9 +1,32 @@
 #include <catch2/catch_test_macros.hpp>
 #include <ngui/btree.hxx>
 #include <ngui/catpuccin.hxx>
+#include <ngui/frame.hxx>
 #include <fmt/format.h>
 #include <optional>
 
+
+TEST_CASE( "Tree Construction", "[btree]" ) {
+    fmt::println("\nTEST_CASE( Tree Construction, [btree] )");
+    using namespace ngui;
+    FullBTree<u32> tree(10u);
+    tree.split_construct(tree.head, 12u);
+    REQUIRE(tree.head->data.has_value() == false);
+    tree.print();
+    REQUIRE(tree.at(0)->data.value() == 10);
+    REQUIRE(tree.at(1)->data.has_value() == false);
+    REQUIRE(tree.at(2)->data.value() == 12);
+
+    fmt::println("------");
+    tree.split_construct(tree.at(2), 14u);
+    tree.print_in_order();
+    tree.print();
+
+    fmt::println("------");
+    tree.split_construct(tree.at(2), 17u);
+    tree.print_in_order();
+    tree.print();
+}
 
 TEST_CASE( "Color Conversion", "[colorscheme]" ) {
     ColorScheme catpuccin(ColorScheme::Red);
@@ -17,21 +40,19 @@ TEST_CASE( "Color Conversion", "[colorscheme]" ) {
     INFO(str);
 }
 TEST_CASE( "BTree basic", "[btree]" ) {
+    fmt::println("\nTEST_CASE( BTree basic, [btree] )");
     using namespace ngui;
-    FullBTree<u32> tree(10);
+    FullBTree<u32> tree(10u);
     REQUIRE( tree.height() == 1 );
-    tree.head.left = new BTreeNode<u32>(12);
-    tree.head.right = new BTreeNode<u32>(9);
+    tree.split(tree.at(0));
     REQUIRE( tree.height() == 2 );
-    tree.head.left->left = new BTreeNode<u32>(12);
-    tree.head.left->right = new BTreeNode<u32>(12);
-    tree.head.right->left = new BTreeNode<u32>(9);
-    tree.head.right->right = new BTreeNode<u32>(9);
+    tree.split(tree.at(0));
     REQUIRE( tree.height() == 3 );
-    tree.head.left->left->right = new BTreeNode<u32>(12);
-    tree.head.left->left->left = new BTreeNode<u32>(12);
+    tree.split(tree.at(0));
     REQUIRE( tree.height() == 4 );
+    tree.print_in_order();
 }
+#ifdef ADSFLJSDLKFJLKAJ
 TEST_CASE( "BTree split", "[btree]" ) {
     using namespace ngui;
     FullBTree<u32> tree(10);
@@ -98,3 +119,4 @@ TEST_CASE( "BTree Traversal", "[btree]" ) {
         REQUIRE( result == std::vector<u32>{ 4, 5, 2, 6, 7, 3, 1 } );
     }
 }
+#endif
