@@ -25,7 +25,6 @@ include(Catch)
 enable_testing()
 
 add_executable(ncad)
-include(precompiled_headers)
 nce_set_compiler_warnings(ncad)
 nce_set_sanitizers(ncad)
 
@@ -33,6 +32,13 @@ add_custom_command(TARGET ncad
     POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:ncad> ${CMAKE_BINARY_DIR})
 
+include(precompiled_headers)
+add_subdirectory(extern)
 add_subdirectory(src)
 
 target_link_libraries(ncad nce Vulkan::Vulkan fmt)
+
+add_custom_command(TARGET ncad
+                   POST_BUILD
+                   COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_CURRENT_SOURCE_DIR}/assets 
+                   ${CMAKE_BINARY_DIR}/assets)

@@ -138,6 +138,7 @@ struct VKEBufferDeleter { void operator()(VkBuffer_T* ptr); };
 struct VKEMemoryDeleter { void operator()(VkDeviceMemory_T* ptr); };
 struct VKEDescriptorSetLayoutDeleter { void operator()(VkDescriptorSetLayout_T* ptr); };
 struct VKEDescriptorPoolDeleter { void operator()(VkDescriptorPool_T* ptr); };
+struct VKEImageDeleter { void operator()(VkImage_T* ptr); };
 
 struct QueueFamilyIndices {
     std::optional<u32> graphics_family;
@@ -217,6 +218,8 @@ struct Instance {
 
     std::unique_ptr<VkDescriptorPool_T, VKEDescriptorPoolDeleter> descriptor_pool;
     std::vector<VkDescriptorSet> descriptor_sets;
+    std::unique_ptr<VkImage_T, VKEImageDeleter> texture_image;
+    std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter>  texture_image_memory;
 
 
 
@@ -246,7 +249,16 @@ struct Instance {
     void create_descriptor_pool();
     void create_descriptor_sets();
     void recreate_swapchain();
+    void create_texture_image();
+    void create_image(u32 width, u32 height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, std::unique_ptr<VkImage_T, VKEImageDeleter>& image, std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter>& image_memory);
     void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::unique_ptr<VkBuffer_T, VKEBufferDeleter>& buffer, std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter>& buffer_memory);
+    void transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
+    void copy_buffer_to_image(VkBuffer buffer, VkImage image, u32 width, u32 height);
+
+
+
+    [[nodiscard]] auto begin_single_time_commands() const -> VkCommandBuffer;
+    auto end_single_time_commands(VkCommandBuffer command_buffer) const -> void;
 
     auto copy_buffer(VkBuffer src_buffer, VkBuffer dst_buffer, VkDeviceSize size) const -> void;
     [[nodiscard]] auto find_memory_type(u32 type_filter, VkMemoryPropertyFlags properties) const -> u32;
