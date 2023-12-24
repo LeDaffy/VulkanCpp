@@ -5,6 +5,8 @@
 #include <cassert>
 #include <queue>
 #include <fmt/format.h>
+#include <iterator>
+
 
 namespace ngui {
 template<typename T>
@@ -33,21 +35,51 @@ struct BTreeNode {
     }
 };
 
+
+template<typename T>
+struct BTreeNodeIterator {
+    BTreeNode<T>* node;
+    BTreeNode<T>* parent;
+    bool peak;
+    constexpr BTreeNodeIterator(BTreeNode<T>* iter, BTreeNode<T>* parent, bool peak) : node(iter), parent(parent), peak(peak) {}
+    BTreeNodeIterator begin() { 
+        BTreeNode<T>* current = node;
+        parent = current;
+        bool peak = false;
+        while (current.left != nullptr) {
+            current = current.left;
+        }
+        if (current->parent == nullptr) {
+            peak = true;
+        }
+        return BTreeNodeIterator(current, parent, peak);
+    }
+    BTreeNodeIterator next() {
+        BTreeNode<T> current = node;
+        // if (current->left == nullptr && current->right == nullptr) {
+        //     return BTreeNodeIterator(current->parent, parent, kk
+        // }
+
+    }
+
+};
+//static_assert(std::forward_iterator<BTreeNodeIterator<int>>);
+
 template<typename T>
 struct FullBTree {
-    BTreeNode<T>* head;
-    size_t num_nodes;
+
+
     constexpr FullBTree() : num_nodes(0) {}
-    constexpr FullBTree(FullBTree& o) : head(o.head), num_nodes(o.num_nodes) {}
-    constexpr FullBTree(FullBTree&& o) : head(o.head), num_nodes(o.num_nodes) {}
+    constexpr FullBTree(FullBTree& o) : root(o.root), num_nodes(o.num_nodes) {}
+    constexpr FullBTree(FullBTree&& o) : root(o.root), num_nodes(o.num_nodes) {}
 
     template<typename... Args>
-    constexpr FullBTree(Args... args) : head(new BTreeNode<T>(args...)), num_nodes(0) {}
+    constexpr FullBTree(Args... args) : root(new BTreeNode<T>(args...)), num_nodes(1) {}
     ~FullBTree() {
         std::stack<BTreeNode<T>*> deletion_stack;
         std::queue<BTreeNode<T>*> queue;
-        if (head == nullptr) { return; }
-        queue.push(head);
+        if (root == nullptr) { return; }
+        queue.push(root);
         while (queue.empty() == false) {
          
         auto* node = queue.front();
@@ -69,9 +101,12 @@ struct FullBTree {
 
     }
 
+    auto head() -> BTreeNode<T>* {
+        return root;
+    }
     auto print_in_order() {
     fmt::print("[ ");
-    in_order(head, [](BTreeNode<T>& node) {
+    in_order(root, [](BTreeNode<T>& node) {
             if (node.data.has_value()) {
                 fmt::print("{}, ", node.data.value()); 
             } else { 
@@ -102,14 +137,14 @@ struct FullBTree {
     }
     void print()
     {
-        printBT("", head, false);    
+        printBT("", root, false);    
     }
 
     constexpr auto at(size_t index) const -> const BTreeNode<T>* {
         size_t counter = 0;
         std::stack<const BTreeNode<T>*> stack;
 
-        const BTreeNode<T>* current = head;
+        const BTreeNode<T>* current = root;
         while (current != nullptr || stack.empty() == false) {
             while (current != nullptr) {
                 stack.push(current);
@@ -128,7 +163,7 @@ struct FullBTree {
         size_t counter = 0;
         std::stack<BTreeNode<T>*> stack;
 
-        BTreeNode<T>* current = head;
+        BTreeNode<T>* current = root;
         while (current != nullptr || stack.empty() == false) {
             while (current != nullptr) {
                 stack.push(current);
@@ -144,7 +179,16 @@ struct FullBTree {
         return nullptr;
     }
     constexpr auto height() const -> size_t {
-        return height(head);
+        return height(root);
+    }
+    constexpr auto sibling(BTreeNode<T>* node) const -> BTreeNode<T>* {
+        if (node->parent == nullptr) {
+            return nullptr;
+        }
+        if (node->parent->left == node) {
+            return node->parent->right;
+        }
+        return node->parent->left;
     }
     constexpr auto height(const BTreeNode<T>* node) const -> size_t {
         if (node == nullptr) { return 0; }
@@ -161,35 +205,35 @@ struct FullBTree {
     }
 
     template<typename Function>
-        auto pre_order(BTreeNode<T>* node, Function fn) {
-            if (node == nullptr) { return; }
-            fn(*node);
-            pre_order(node->left, fn);
-            pre_order(node->right, fn);
-        }
+    auto pre_order(BTreeNode<T>* node, Function fn) {
+        if (node == nullptr) { return; }
+        fn(*node);
+        pre_order(node->left, fn);
+        pre_order(node->right, fn);
+    }
 
     template<typename Function>
-        auto in_order(BTreeNode<T>* node, Function fn) {
-            std::stack<BTreeNode<T>*> stack;
-            BTreeNode<T>* current = node;
-            while (current != nullptr || stack.empty() == false) {
-                while (current != nullptr) {
-                    stack.push(current);
-                    current = current->left;
-                }
-                current = stack.top();
-                stack.pop();
-                fn(*current);
-                current = current->right;
+    auto in_order(BTreeNode<T>* node, Function fn) {
+        std::stack<BTreeNode<T>*> stack;
+        BTreeNode<T>* current = node;
+        while (current != nullptr || stack.empty() == false) {
+            while (current != nullptr) {
+                stack.push(current);
+                current = current->left;
             }
+            current = stack.top();
+            stack.pop();
+            fn(*current);
+            current = current->right;
         }
+    }
     template<typename Function>
-        auto post_order(BTreeNode<T>* node, Function fn) {
-            if (node == nullptr) { return; }
-            post_order(node->left, fn);
-            post_order(node->right, fn);
-            fn(*node);
-        }
+    auto post_order(BTreeNode<T>* node, Function fn) {
+        if (node == nullptr) { return; }
+        post_order(node->left, fn);
+        post_order(node->right, fn);
+        fn(*node);
+    }
     auto split(BTreeNode<T>* const node) {
         assert(node != nullptr);
         node->left = new BTreeNode<T>(*node);
@@ -199,17 +243,21 @@ struct FullBTree {
 
         node->left->parent = node;
         node->right->parent = node;
+        num_nodes += 2;
     }
     template<typename... Args>
-        auto split_construct(BTreeNode<T>* const node, Args... args) {
-            assert(node != nullptr);
-            node->left = new BTreeNode<T>(*node);
-            node->right = new BTreeNode<T>(args...);
-            node->left->data = std::move(node->data);
-            node->data = std::nullopt;
+    auto split_construct(BTreeNode<T>* const node, Args... args) {
+        assert(node != nullptr);
+        node->left = new BTreeNode<T>(*node);
+        node->right = new BTreeNode<T>(args...);
+        node->left->data = std::move(node->data);
+        node->data = std::nullopt;
 
-            node->left->parent = node;
-            node->right->parent = node;
-        }
+        node->left->parent = node;
+        node->right->parent = node;
+    }
+    private:
+    BTreeNode<T>* root;
+    size_t num_nodes;
 };
 }

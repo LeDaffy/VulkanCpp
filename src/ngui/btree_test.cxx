@@ -10,8 +10,8 @@ TEST_CASE( "Tree Construction", "[btree]" ) {
     fmt::println("\nTEST_CASE( Tree Construction, [btree] )");
     using namespace ngui;
     FullBTree<u32> tree(10u);
-    tree.split_construct(tree.head, 12u);
-    REQUIRE(tree.head->data.has_value() == false);
+    tree.split_construct(tree.head(), 12u);
+    REQUIRE(tree.head()->data.has_value() == false);
     tree.print();
     REQUIRE(tree.at(0)->data.value() == 10);
     REQUIRE(tree.at(1)->data.has_value() == false);
