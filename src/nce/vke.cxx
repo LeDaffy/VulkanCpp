@@ -34,6 +34,45 @@ namespace vke {
     std::unique_ptr<VkDevice_T, VKEDeviceDeleter> Instance::logical_device(nullptr);
 
     // function definitions
+
+    void Instance::create_texture_image_view() {
+        VkImageViewCreateInfo view_info{};
+        view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        view_info.image = texture_image.get();
+        view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        view_info.format = VK_FORMAT_R8G8B8A8_SRGB;
+        view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        view_info.subresourceRange.baseMipLevel = 0;
+        view_info.subresourceRange.levelCount = 1;
+        view_info.subresourceRange.baseArrayLayer = 0;
+        view_info.subresourceRange.layerCount = 1;
+
+        vke::Result result = vkCreateImageView(logical_device.get(), &view_info, nullptr, reinterpret_cast<VkImageView*>(&texture_image_view));
+        VKE_RESULT_CRASH(result);
+    }
+    void Instance::create_texture_sampler() {
+        VkSamplerCreateInfo sampler_info{};
+        sampler_info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        sampler_info.magFilter = VK_FILTER_LINEAR;
+        sampler_info.minFilter = VK_FILTER_LINEAR;
+        sampler_info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        sampler_info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        sampler_info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        sampler_info.anisotropyEnable = VK_TRUE;
+        VkPhysicalDeviceProperties properties{};
+        vkGetPhysicalDeviceProperties(physical_device, &properties);
+        sampler_info.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
+        sampler_info.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+        sampler_info.unnormalizedCoordinates = VK_FALSE;
+        sampler_info.compareEnable = VK_FALSE;
+        sampler_info.compareOp = VK_COMPARE_OP_ALWAYS;
+        sampler_info.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+        sampler_info.mipLodBias = 0.0f;
+        sampler_info.minLod = 0.0f;
+        sampler_info.maxLod = 0.0f;
+        vke::Result result = vkCreateSampler(logical_device.get(), &sampler_info, nullptr, reinterpret_cast<VkSampler*>(&texture_sampler));
+        VKE_RESULT_CRASH(result);
+    }
     void Instance::copy_buffer_to_image(VkBuffer buffer, VkImage image, u32 width, u32 height) {
         VkCommandBuffer command_buffer = begin_single_time_commands();
         VkBufferImageCopy region{};
@@ -979,6 +1018,8 @@ namespace vke {
             create_framebuffers();
             create_command_pool();
             create_texture_image();
+            create_texture_image_view();
+            create_texture_sampler();
             create_vertex_buffer();
             create_index_buffer();
             create_uniform_buffers();
@@ -1030,6 +1071,7 @@ namespace vke {
 
         // Specifying used device features
         VkPhysicalDeviceFeatures device_features = {};
+        device_features.samplerAnisotropy = VK_TRUE;
 
         // Creating the logical device
         VkDeviceCreateInfo create_info = {
@@ -1125,7 +1167,10 @@ namespace vke {
             swapchain_adequate = !swapchain_support.formats.empty() && !swapchain_support.present_modes.empty();
         }
 
-        return indices.has_value() && extensions_supported && swapchain_adequate;
+        VkPhysicalDeviceFeatures supported_features;
+        vkGetPhysicalDeviceFeatures(device, &supported_features);
+
+        return indices.has_value() && extensions_supported && swapchain_adequate && supported_features.samplerAnisotropy;
     }
     auto Instance::check_device_extension_support(VkPhysicalDevice device) const -> bool {
         u32 extension_count;
@@ -1253,4 +1298,5 @@ namespace vke {
     void VKEDescriptorSetLayoutDeleter::operator()(VkDescriptorSetLayout_T* ptr) { vkDestroyDescriptorSetLayout(Instance::logical_device.get(), ptr, nullptr); }
     void VKEDescriptorPoolDeleter::operator()(VkDescriptorPool_T* ptr) { vkDestroyDescriptorPool(Instance::logical_device.get(), ptr, nullptr); }
     void VKEImageDeleter::operator()(VkImage_T* ptr) { vkDestroyImage(Instance::logical_device.get(), ptr, nullptr); }
+    void VKESampleDeleter::operator()(VkSampler_T* ptr) { vkDestroySampler(Instance::logical_device.get(), ptr, nullptr); }
 }

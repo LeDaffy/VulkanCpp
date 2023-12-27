@@ -139,6 +139,7 @@ struct VKEMemoryDeleter { void operator()(VkDeviceMemory_T* ptr); };
 struct VKEDescriptorSetLayoutDeleter { void operator()(VkDescriptorSetLayout_T* ptr); };
 struct VKEDescriptorPoolDeleter { void operator()(VkDescriptorPool_T* ptr); };
 struct VKEImageDeleter { void operator()(VkImage_T* ptr); };
+struct VKESampleDeleter { void operator()(VkSampler_T* ptr); };
 
 struct QueueFamilyIndices {
     std::optional<u32> graphics_family;
@@ -221,7 +222,8 @@ struct Instance {
     std::unique_ptr<VkImage_T, VKEImageDeleter> texture_image;
     std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter>  texture_image_memory;
 
-
+    std::unique_ptr<VkImageView_T, VKEImageViewDeleter> texture_image_view;
+    std::unique_ptr<VkSampler_T, VKESampleDeleter> texture_sampler;
 
 
     /// @brief Creates an Instance.
@@ -250,6 +252,8 @@ struct Instance {
     void create_descriptor_sets();
     void recreate_swapchain();
     void create_texture_image();
+    void create_texture_image_view();
+    void create_texture_sampler();
     void create_image(u32 width, u32 height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, std::unique_ptr<VkImage_T, VKEImageDeleter>& image, std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter>& image_memory);
     void create_buffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, std::unique_ptr<VkBuffer_T, VKEBufferDeleter>& buffer, std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter>& buffer_memory);
     void transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout);
