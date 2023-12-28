@@ -31,7 +31,7 @@ struct Frame {
 
 
     private:
-        static constexpr std::array<Vert, 4> verts = { Vert(0.0, 0.0), Vert(1.0, 0.0), Vert(1.0, 1.0), Vert(0.0, 1.0) };
+        static constexpr std::array<Vert, 4> verts = { Vert(0.0f32, 0.0f32), Vert(1.0f32, 0.0f32), Vert(1.0f32, 1.0f32), Vert(0.0f32, 1.0f32) };
         static constexpr std::array<u32, 6> indices = { 0, 1, 2, 0, 2, 3 };
 };
 

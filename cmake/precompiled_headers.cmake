@@ -6,7 +6,7 @@ message("cmake src ${CMAKE_CURRENT_SOURCE_DIR}")
 target_precompile_headers(pch
     PUBLIC
     "src/types/types.hxx"
-    PRIVATE
+    # PRIVATE
     <algorithm>
     <any>
     <array>
@@ -31,6 +31,7 @@ target_precompile_headers(pch
     <set>
     <string>
     <string_view>
+    <stdfloat>
     <tuple>
     <unistd.h>
     <unordered_map>

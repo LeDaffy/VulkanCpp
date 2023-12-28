@@ -94,6 +94,9 @@ namespace window {
     };
 
     struct Window {
+        static auto get_required_vulkan_extensions() -> std::vector<CString> {
+            return {"VK_KHR_surface", "VK_KHR_xcb_surface"};
+        }
         Attributes attributes;
         std::unique_ptr<xcb_connection_t, XCBConnectionDeleter> x_connection;
         xcb_window_t x_window;

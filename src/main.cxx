@@ -4,6 +4,7 @@
 
 #include <nce/window.hxx>
 #include <nce/vke.hxx>
+#include <render_api/instance.hxx>
 
 auto main() -> i32
 {
@@ -21,11 +22,12 @@ auto main() -> i32
             }
         })
         .build();
-    vke::Instance vkeinst(xwindow);
+    // render_api::create_instance(render_api::ENABLE_VALIDATION_LAYERS, { "VK_LAYER_KHRONOS_validation" }, window::Window::get_required_vulkan_extensions());
+    // vke::Instance vkeinst(xwindow);
 
     while (!xwindow.should_close()) {
         xwindow.poll_events();
-        vkeinst.draw_frame();
+        // vkeinst.draw_frame();
         if (xwindow.keys.is_pressed(nce::KeyCode::space)) {
             fmt::println("Pressed space");
         }
@@ -60,7 +62,7 @@ auto main() -> i32
         }
 
     }
-    vkDeviceWaitIdle(vkeinst.logical_device.get());
+    // vkDeviceWaitIdle(vkeinst.logical_device.get());
     return 0;
 }
 

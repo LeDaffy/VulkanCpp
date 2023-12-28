@@ -1,6 +1,7 @@
+#pragma once
 #include <vulkan/vulkan.h>
 
-namespace render {
+namespace render_api {
 /**
  *  @brief A container storing a VkResult.
  *  vke::Result provides functionality to print the error type from VkResult.
@@ -93,3 +94,17 @@ struct Result {
     }
 };
 }
+
+#ifndef NDEBUG
+#define VKE_RESULT_CRASH(_result, _msg) \
+    if ((_result) != VK_SUCCESS) { \
+        fmt::println("VkResult Error ({}, {}, {}): {} -- {}\n", __FILE__, __func__, __LINE__, static_cast<CString>((_result)), (_msg)); \
+        exit(EXIT_FAILURE); \
+    }
+#else
+#define VKE_RESULT_CRASH(_result, _msg) \
+    if ((_result) != VK_SUCCESS) { \
+        fmt::println("VkResult Error ({}, {}, {}): {} -- {}\n", __func__, __LINE__, static_cast<CString>((_result)), (_msg)); \
+        exit(EXIT_FAILURE); \
+    }
+#endif

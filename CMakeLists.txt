@@ -6,7 +6,7 @@ include(dependencies)
 include(compiler_warnings)
 include(sanitizers)
 
-set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_EXTENSIONS ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -36,7 +36,7 @@ include(precompiled_headers)
 add_subdirectory(extern)
 add_subdirectory(src)
 
-target_link_libraries(ncad nce Vulkan::Vulkan fmt)
+target_link_libraries(ncad nce Vulkan::Vulkan fmt render_api)
 
 add_custom_command(TARGET ncad
                    POST_BUILD
