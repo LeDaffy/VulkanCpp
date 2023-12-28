@@ -8,6 +8,7 @@
 #include <vulkan/vulkan_xcb.h>
 
 #define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -201,13 +202,20 @@ struct Instance {
     bool frame_buffer_resized = false;
     const window::Window& window;
     const std::vector<Vertex> vertices = {
-        {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-        {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-        {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
+        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+
+        {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+        {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+        {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+        {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
     };
+
     const std::vector<uint16_t> indices = {
-        0, 1, 2, 2, 3, 0
+        0, 1, 2, 2, 3, 0,
+        4, 5, 6, 6, 7, 4
     };
     std::unique_ptr<VkBuffer_T, VKEBufferDeleter> vertex_buffer;
     std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter> vertex_buffer_memory;
@@ -226,9 +234,15 @@ struct Instance {
     std::unique_ptr<VkSampler_T, VKESampleDeleter> texture_sampler;
 
 
+    std::unique_ptr<VkImage_T, VKEImageDeleter> depth_image;
+    std::unique_ptr<VkImageView_T, VKEImageViewDeleter> depth_image_view;
+    std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter>  depth_image_memory;
+
+
     /// @brief Creates an Instance.
     /// Itializes Vulkan, selects a physical devices
     Instance(window::Window& window);
+    void create_depth_resources();
     void update_uniform_buffer(u32 current_image);
     void create_instance();
     void create_surface(const window::Window& window);
@@ -261,6 +275,10 @@ struct Instance {
 
 
 
+    [[nodiscard]] auto create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags) -> VkImageView;
+    [[nodiscard]] auto find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) const -> VkFormat;
+    [[nodiscard]] auto find_depth_format() -> VkFormat;
+    [[nodiscard]] auto has_stencil_component(VkFormat format) -> bool;
     [[nodiscard]] auto begin_single_time_commands() const -> VkCommandBuffer;
     auto end_single_time_commands(VkCommandBuffer command_buffer) const -> void;
 
