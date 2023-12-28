@@ -1,6 +1,5 @@
 #pragma once
 
-#include <ngui/types.hxx>
 #include <glm/glm.hpp>
 #include <ngui/btree.hxx>
 

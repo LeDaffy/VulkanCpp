@@ -3,7 +3,6 @@
 #include <fmt/format.h>
 
 #include <nce/window.hxx>
-#include <nce/types.hxx>
 #include <nce/vke.hxx>
 
 auto main() -> i32

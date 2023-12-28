@@ -13,3 +13,6 @@ target_link_libraries(btree_test PRIVATE Catch2::Catch2WithMain ngui fmt)
 catch_discover_tests(btree_test)
 nce_set_compiler_warnings(btree_test)
 nce_set_sanitizers(btree_test)
+
+target_precompile_headers(btree_test REUSE_FROM pch)
+target_precompile_headers(ngui REUSE_FROM pch)

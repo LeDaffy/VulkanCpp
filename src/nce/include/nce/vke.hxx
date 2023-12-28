@@ -12,12 +12,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include <chrono>
 
 #include <nce/vke_macro.hxx>
 
-#include <nce/log.hxx>
-#include <nce/types.hxx>
 #include <nce/log.hxx>
 #include <nce/window.hxx>
 #include <nce/vertex.hxx>

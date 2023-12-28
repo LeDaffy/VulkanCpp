@@ -18,7 +18,6 @@
 #include <nce/log.hxx>
 #include <nce/keycode.hxx>
 
-#include <nce/types.hxx>
 #include <nce/carray.hxx>
 #include <nce/non_owning_ptr.hxx>
 #include <nce/log.hxx>

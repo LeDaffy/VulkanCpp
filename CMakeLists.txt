@@ -42,3 +42,4 @@ add_custom_command(TARGET ncad
                    POST_BUILD
                    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${CMAKE_CURRENT_SOURCE_DIR}/assets 
                    ${CMAKE_BINARY_DIR}/assets)
+target_precompile_headers(ncad REUSE_FROM pch)

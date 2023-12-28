@@ -1,6 +1,5 @@
 #pragma once
 #include <glm/glm.hpp>
-#include <ngui/types.hxx>
 
 class ColorScheme
 {

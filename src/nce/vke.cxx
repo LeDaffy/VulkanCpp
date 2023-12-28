@@ -1,9 +1,4 @@
 #include "nce/vke_macro.hxx"
-#include <algorithm>
-#include <unordered_map>
-#include <cstdint>
-#include <filesystem>
-#include <fstream>
 #include <nce/vke.hxx>
 #include <vulkan/vulkan_core.h>
 #include <stb/stb_image.h>
@@ -136,7 +131,7 @@ namespace vke {
 
         end_single_time_commands(command_buffer);
     }
-    void Instance::transition_image_layout(VkImage image, VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) {
+    void Instance::transition_image_layout(VkImage image, [[maybe_unused]] VkFormat format, VkImageLayout old_layout, VkImageLayout new_layout) {
         VkCommandBuffer command_buffer = begin_single_time_commands();
         VkImageMemoryBarrier barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -644,14 +639,14 @@ namespace vke {
             for (const auto& index : shape.mesh.indices) {
                 Vertex vertex{};
                 vertex.pos = {
-                    attrib.vertices[3 * index.vertex_index + 0],
-                    attrib.vertices[3 * index.vertex_index + 1],
-                    attrib.vertices[3 * index.vertex_index + 2]
+                    attrib.vertices[3 * static_cast<size_t>(index.vertex_index) + 0],
+                    attrib.vertices[3 * static_cast<size_t>(index.vertex_index) + 1],
+                    attrib.vertices[3 * static_cast<size_t>(index.vertex_index) + 2]
                 };
 
                 vertex.tex_coords = {
-                    attrib.texcoords[2 * index.texcoord_index + 0],
-                    1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+                    attrib.texcoords[2 * static_cast<size_t>(index.texcoord_index) + 0],
+                    1.0f - attrib.texcoords[2 * static_cast<size_t>(index.texcoord_index) + 1]
                 };
 
                 vertex.color = {1.0f, 1.0f, 1.0f};
