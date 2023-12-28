@@ -29,6 +29,7 @@ constexpr bool use_validation_layers = true;
 constexpr bool use_validation_layers = false;
 #endif
 
+
 /**
  *  @brief A container storing a VkResult.
  *  vke::Result provides functionality to print the error type from VkResult.
@@ -165,6 +166,11 @@ struct UniformBufferObject {
  *  @brief Container that initializes and holds a vulkan instance.
  */
 struct Instance {
+    constexpr static u32 WIDTH = 800;
+    constexpr static u32 HEIGHT = 600;
+
+    const static std::string MODEL_PATH;
+    const static std::string TEXTURE_PATH;
     // Static Members
     /// @brief Required extensions for drawing with vulkan
     constexpr static std::array<CString, 1> validation_layers = { "VK_LAYER_KHRONOS_validation" };
@@ -201,22 +207,8 @@ struct Instance {
     u32 current_frame = 0;
     bool frame_buffer_resized = false;
     const window::Window& window;
-    const std::vector<Vertex> vertices = {
-        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
-
-        {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-        {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-        {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
-    };
-
-    const std::vector<uint16_t> indices = {
-        0, 1, 2, 2, 3, 0,
-        4, 5, 6, 6, 7, 4
-    };
+    std::vector<Vertex> vertices;
+    std::vector<u32> indices;
     std::unique_ptr<VkBuffer_T, VKEBufferDeleter> vertex_buffer;
     std::unique_ptr<VkDeviceMemory_T, VKEMemoryDeleter> vertex_buffer_memory;
     std::unique_ptr<VkBuffer_T, VKEBufferDeleter> index_buffer;
@@ -258,6 +250,7 @@ struct Instance {
     void create_command_buffers();
     void record_command_buffer(VkCommandBuffer command_buffer, u32 image_index);
     void draw_frame();
+    void load_model();
     void create_sync_objects();
     void create_vertex_buffer();
     void create_index_buffer();

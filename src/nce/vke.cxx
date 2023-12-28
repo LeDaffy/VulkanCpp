@@ -1,11 +1,13 @@
 #include "nce/vke_macro.hxx"
 #include <algorithm>
+#include <unordered_map>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <nce/vke.hxx>
 #include <vulkan/vulkan_core.h>
 #include <stb/stb_image.h>
+#include <tiny_obj_loader.h>
 
 
 
@@ -32,6 +34,8 @@ namespace vke {
     std::unique_ptr<VkSurfaceKHR_T, VKESurfaceDeleter> Instance::surface(nullptr);
     VkPhysicalDevice Instance::physical_device(nullptr);
     std::unique_ptr<VkDevice_T, VKEDeviceDeleter> Instance::logical_device(nullptr);
+    const std::string Instance::MODEL_PATH = "assets/models/viking_room.obj";
+    const std::string Instance::TEXTURE_PATH = "assets/models/viking_room.png";
 
     // function definitions
     auto Instance::create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags) -> VkImageView {
@@ -221,7 +225,7 @@ namespace vke {
     }
     void Instance::create_texture_image() {
         i32 tex_width, tex_height, tex_channels;
-        stbi_uc* pixels = stbi_load("assets/texture.jpg", &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
+        stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
         VkDeviceSize image_size = static_cast<u64>(tex_width) * static_cast<u64>(tex_height) * 4lu;
 
         if (!pixels) {
@@ -614,7 +618,7 @@ namespace vke {
             VkBuffer vertex_buffers[] = {vertex_buffer.get()};
             VkDeviceSize offsets[] = {0};
             vkCmdBindVertexBuffers(command_buffer, 0, 1, vertex_buffers, offsets);
-            vkCmdBindIndexBuffer(command_buffer, index_buffer.get(), 0, VK_INDEX_TYPE_UINT16);
+            vkCmdBindIndexBuffer(command_buffer, index_buffer.get(), 0, VK_INDEX_TYPE_UINT32);
             vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_layout.get(), 0, 1, &descriptor_sets[current_frame], 0, nullptr);
             vkCmdDrawIndexed(command_buffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
@@ -623,7 +627,43 @@ namespace vke {
         result = vkEndCommandBuffer(command_buffer);
         VKE_RESULT_CRASH(result);
         // "failed to record command buffer!"
+    }
+    void Instance::load_model() {
+        tinyobj::attrib_t attrib;
+        std::vector<tinyobj::shape_t> shapes;
+        std::vector<tinyobj::material_t> materials;
+        std::string warn, err;
 
+        if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str())) {
+            throw std::runtime_error(warn + err);
+        }
+
+        std::unordered_map<Vertex, u32> unique_vertices{};
+
+        for (const auto& shape : shapes) {
+            for (const auto& index : shape.mesh.indices) {
+                Vertex vertex{};
+                vertex.pos = {
+                    attrib.vertices[3 * index.vertex_index + 0],
+                    attrib.vertices[3 * index.vertex_index + 1],
+                    attrib.vertices[3 * index.vertex_index + 2]
+                };
+
+                vertex.tex_coords = {
+                    attrib.texcoords[2 * index.texcoord_index + 0],
+                    1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+                };
+
+                vertex.color = {1.0f, 1.0f, 1.0f};
+
+                if (unique_vertices.count(vertex) == 0) {
+                    unique_vertices[vertex] = static_cast<u32>(vertices.size());
+                    vertices.push_back(vertex);
+                }
+                indices.push_back(unique_vertices[vertex]);
+
+            }
+        }
 
 
     }
@@ -1092,6 +1132,7 @@ namespace vke {
             create_texture_image();
             create_texture_image_view();
             create_texture_sampler();
+            load_model();
             create_vertex_buffer();
             create_index_buffer();
             create_uniform_buffers();

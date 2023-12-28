@@ -18,5 +18,6 @@ target_link_libraries(nce
     X11::xkbcommon_X11
     X11::xcb_icccm
     stb_image
+    tiny_obj
     )
 target_precompile_headers(nce REUSE_FROM pch)
